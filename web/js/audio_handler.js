@@ -2,7 +2,7 @@
 // This module handles all interactions with the Web Media APIs
 // for capturing and processing audio via an AudioWorklet.
 
-import { devLog, devError } from './config.js';
+import { devLog, devWarn, devError } from './config.js';
 import muteManager from './mute-manager.js';
 
 let audioContext = null;
@@ -51,23 +51,68 @@ export async function setupMicrophone() {
  */
 export async function startAudioProcessing(micId, onAudioData) {
     try {
-        // 1. Get Audio Streams
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: micId } } });
-        systemStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        // 1. Get Audio Streams with Tiered Fallback
+        
+        // --- Step 1A: Get Microphone Stream ---
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: micId } } });
+            devLog("✅ Microphone stream acquired");
+        } catch (err) {
+            devError("❌ Failed to acquire microphone stream:", err);
+            return { success: false, error: "Microphone permission denied or device not found." };
+        }
 
-        if (!micStream || !systemStream) {
-            console.error("Could not get both audio streams.");
+        // --- Step 1B: Get System/Screen Stream with Fallback ---
+        let systemAudioAcquired = false;
+        let screenVideoAcquired = false;
+
+        try {
+            // Tier 1: Try for both video and audio
+            devLog("📡 Attempting to capture screen video and system audio...");
+            systemStream = await navigator.mediaDevices.getDisplayMedia({ 
+                video: { cursor: "always" }, 
+                audio: true 
+            });
+            systemAudioAcquired = true;
+            screenVideoAcquired = true;
+            devLog("✅ Full screen and system audio capture acquired");
+        } catch (err) {
+            devWarn("⚠️ Could not capture system audio. Falling back to video-only...", err);
+            
+            try {
+                // Tier 2: Try for video only
+                systemStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: { cursor: "always" }, 
+                    audio: false 
+                });
+                screenVideoAcquired = true;
+                devLog("✅ Screen video capture acquired (no system audio)");
+            } catch (err2) {
+                devError("❌ Screen capture completely denied:", err2);
+                // Tier 3: Continue with just microphone (Vision AI will be disabled)
+            }
+        }
+
+        if (!micStream) {
             stopAudioProcessing();
-            return false;
+            return { success: false, error: "Microphone stream is required." };
         }
 
         // 2. Setup AudioContext and Worklet
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        console.log(`🎵 AudioContext: ${audioContext.sampleRate}Hz`); // Keep this as it's important for debugging
+        // Force 48kHz to match Deepgram's configuration and avoid pitch issues
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            sampleRate: 48000
+        });
+        console.log(`🎵 AudioContext: ${audioContext.sampleRate}Hz`); 
         await audioContext.audioWorklet.addModule('/static/js/audio_processor.js');
         
         // 3. Create a single mixed processor for better diarization
-        const mixedProcessor = new AudioWorkletNode(audioContext, 'mixed-processor');
+        // Explicitly define 2 inputs: index 0 for Mic, index 1 for System
+        const mixedProcessor = new AudioWorkletNode(audioContext, 'mixed-processor', {
+            numberOfInputs: 2,
+            numberOfOutputs: 1,
+            outputChannelCount: [1]
+        });
 
         // Handle mixed audio with mute-aware speaker detection
         let audioProcessingCounter = 0; // For throttled logging
@@ -75,7 +120,7 @@ export async function startAudioProcessing(micId, onAudioData) {
         mixedProcessor.port.onmessage = (event) => {
             // If universally muted, drop all audio data immediately.
             if (muteManager.isAudioPaused()) {
-                if (audioProcessingCounter % 200 === 0) { // Log occasionally to show it's paused
+                if (audioProcessingCounter % 200 === 0) {
                     devLog(`⏸️ Audio processing paused due to universal mute.`);
                 }
                 audioProcessingCounter++;
@@ -88,19 +133,18 @@ export async function startAudioProcessing(micId, onAudioData) {
             if (muteManager.isMicrophoneMuted()) {
                 // When microphone is muted, all audio is from the interviewer.
                 speakerHint = 'system';
-                // Logging removed to reduce console noise.
             } else {
                 // When unmuted, distinguish based on volume.
-                speakerHint = systemLevel > micLevel * 2 ? 'system' : 'microphone';
+                // Improved logic: if systemLevel is significant, prioritize it as 'system'
+                speakerHint = systemLevel > (micLevel * 1.5) ? 'system' : 'microphone';
             }
 
             audioProcessingCounter++;
             onAudioData(audioData, speakerHint);
         };
 
-        // 4. Connect both sources to the mixed processor with mute control
+        // 4. Connect sources to the mixed processor with mute control
         const micSource = audioContext.createMediaStreamSource(micStream);
-        const systemSource = audioContext.createMediaStreamSource(systemStream);
         
         // Create gain node for microphone muting
         micGainNode = audioContext.createGain();
@@ -109,29 +153,46 @@ export async function startAudioProcessing(micId, onAudioData) {
         // Listen for future changes
         muteManager.on('microphoneMuteChange', updateMicGainNode);
         
-        // Connect mic through gain node for mute control
+        // Connect mic through gain node for mute control to input 0
         micSource.connect(micGainNode);
-        micGainNode.connect(mixedProcessor);
+        micGainNode.connect(mixedProcessor, 0, 0);
         
-        // System audio connects directly (we don't want to mute interviewer)
-        systemSource.connect(mixedProcessor);
+        // System audio connects directly to input 1 (if available)
+        if (systemStream && systemStream.getAudioTracks().length > 0) {
+            try {
+                const systemSource = audioContext.createMediaStreamSource(systemStream);
+                systemSource.connect(mixedProcessor, 0, 1);
+                devLog("✅ System audio source connected to processor input 1");
+            } catch (err) {
+                devWarn("⚠️ Could not connect system audio source:", err);
+                systemAudioAcquired = false;
+            }
 
-        // Store the video track for screenshot reuse, but remove it from the stream
-        const videoTracks = systemStream.getVideoTracks();
-        if (videoTracks.length > 0) {
-            screenVideoTrack = videoTracks[0];
-            console.log("📹 Screen video track stored for screenshot reuse");
+            // Store the video track for screenshot reuse, but remove it from the stream
+            const videoTracks = systemStream.getVideoTracks();
+            if (videoTracks.length > 0) {
+                screenVideoTrack = videoTracks[0];
+                devLog("📹 Screen video track stored for screenshot reuse");
+                screenVideoAcquired = true;
+            } else {
+                devWarn("⚠️ No video track found in display media stream");
+                screenVideoAcquired = false;
+            }
         } else {
-            console.warn("⚠️ No video track found in display media stream");
+            devWarn("ℹ️ No system stream available - Interviewer detection and Vision AI will be disabled.");
         }
 
-        devLog("✅ Audio processing started successfully");
-        return true;
+        devLog("✅ Audio processing started");
+        return { 
+            success: true, 
+            systemAudio: systemAudioAcquired, 
+            screenVideo: screenVideoAcquired 
+        };
 
     } catch (err) {
-        console.error("❌ Error starting audio processing:", err);
+        devError("❌ Error in startAudioProcessing lifecycle:", err);
         stopAudioProcessing();
-        return false;
+        return { success: false, error: err.message };
     }
 }
 

@@ -53,6 +53,7 @@ class LiveInterviewUI {
 
     // Initialize elements
     init() {
+        this.scrollContainer = document.querySelector('.interview-content');
         this.conversationStream = document.getElementById('conversation-stream');
         this.activityIndicator = document.getElementById('activity-indicator');
         this.endButton = document.getElementById('end-interview-btn');
@@ -90,23 +91,25 @@ class LiveInterviewUI {
     }
 
     setupSmartScroll() {
-        if (!this.conversationStream) return;
-
-        this.conversationStream.addEventListener('scroll', () => {
-            this.handleScrollEvent();
-        });
-
-        // Track user scroll intent via wheel events
-        this.conversationStream.addEventListener('wheel', (e) => {
-            this.handleWheelEvent(e);
-        }, { passive: true });
+        // Listen to scroll events on the actual scrolling container
+        if (this.scrollContainer) {
+            this.scrollContainer.addEventListener('scroll', () => {
+                this.handleScrollEvent();
+            });
+            
+            // Track user scroll intent via wheel events
+            this.scrollContainer.addEventListener('wheel', (e) => {
+                this.handleWheelEvent(e);
+            }, { passive: true });
+        }
 
         // Create resume scroll button (initially hidden)
         this.createResumeScrollButton();
     }
 
     handleScrollEvent() {
-        const { scrollTop, scrollHeight, clientHeight } = this.conversationStream;
+        if (!this.scrollContainer) return;
+        const { scrollTop, scrollHeight, clientHeight } = this.scrollContainer;
         const currentPosition = scrollTop;
         const maxScrollTop = scrollHeight - clientHeight;
         
@@ -300,8 +303,8 @@ class LiveInterviewUI {
             else if (e.key === 'Home') {
                 e.preventDefault();
                 this.enterReadingMode();
-                if (this.conversationStream) {
-                    this.conversationStream.scrollTop = 0;
+                if (this.scrollContainer) {
+                    this.scrollContainer.scrollTop = 0;
                 }
             }
             
@@ -1011,8 +1014,8 @@ class LiveInterviewUI {
             this.showResumeScrollButton();
             return;
         }
-        if (this.conversationStream) {
-            this.conversationStream.scrollTop = this.conversationStream.scrollHeight;
+        if (this.scrollContainer) {
+            this.scrollContainer.scrollTop = this.scrollContainer.scrollHeight;
         }
     }
 

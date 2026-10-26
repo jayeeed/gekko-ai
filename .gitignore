@@ -16,3 +16,5 @@ build/
 *.spec
 # AI Provider configuration file with secret keys
 ai_providers.json
+.agent/
+.DS_Store

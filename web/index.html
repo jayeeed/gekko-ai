@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aura</title>
+    <title>Gekko AI</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/live-interview.css">
     <link rel="stylesheet" href="/static/css/markdown-styles.css">
@@ -19,13 +19,16 @@
         src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 </head>
 
-<body>
+<body class="minimal-ui">
+    <!-- Ambient Background Glows -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
 
     <!-- Stage 1: Onboarding -->
     <div id="onboarding-view" class="view active">
         <div class="container">
             <div class="brand-header">
-                <div class="brand-logo">AURA</div>
+                <div class="brand-logo">GEKKO</div>
                 <span class="brand-tagline">AI Interview Coach</span>
             </div>
             <p class="subtitle">Set up your profile, AI preferences, and API credentials.</p>
@@ -57,19 +60,18 @@
                             <div class="checkbox-group">
                                 <label><input type="checkbox" name="focus" value="behavioral"> Behavioral</label>
                                 <label><input type="checkbox" name="focus" value="system-design"> System Design</label>
-                                <label><input type="checkbox" name="focus" value="dsa"> Data Structures &
-                                    Algorithms</label>
+                                <label><input type="checkbox" name="focus" value="dsa"> Data Structures & Algorithms</label>
                                 <label><input type="checkbox" name="focus" value="coding"> Coding</label>
                                 <label><input type="checkbox" name="focus" value="cultural-fit"> Cultural Fit</label>
                                 <label><input type="checkbox" name="focus" value="hr"> HR / Screening</label>
                             </div>
                         </fieldset>
+                        
+                        <fieldset class="grid-span-2">
+                            <legend>Job Description / Requirements</legend>
+                            <textarea id="user-objectives" placeholder="Paste the job description or key requirements here to give the AI context."></textarea>
+                        </fieldset>
                     </div>
-                    <fieldset>
-                        <legend>Job Description / Requirements</legend>
-                        <textarea id="user-objectives"
-                            placeholder="Paste the job description or key requirements here to give the AI context."></textarea>
-                    </fieldset>
                 </div>
 
                 <!-- Tab 2: AI Setup -->
@@ -228,7 +230,7 @@
                             <div class="pro-tip-card performance">
                                 <h4>⚡ Speed Strategy</h4>
                                 <p>If your primary AI model is lagging, use <kbd>Alt+E</kbd> to immediately trigger
-                                    Auto-Select. Aura will switch you to the fastest healthy provider available.</p>
+                                    Auto-Select. Gekko will switch you to the fastest healthy provider available.</p>
                             </div>
                         </div>
 
@@ -286,7 +288,7 @@
     <!-- Stage 2: Pre-Flight Check -->
     <div id="preflight-view" class="view">
         <div class="container">
-            <h1>Aura Pre-Flight Check</h1>
+            <h1>Gekko Pre-Flight Check</h1>
             <div id="checks">
                 <div class="check-item" id="check-mic-permission"><span class="indicator">⚪</span> Microphone Permission
                 </div>
@@ -320,13 +322,16 @@
                     <div class="status-indicator recording"></div>
                     <span>Live Interview Session</span>
                 </div>
-                <div class="header-controls">
-                    <button id="mute-btn" class="mute-btn" title="Mute microphone input to app (Alt+M)">
-                        <span class="mute-icon">🎤</span>
-                        <span class="mute-text">Mute</span>
-                    </button>
-                    <button id="reset-interview-btn" class="reset-btn">Reset</button>
-                    <button id="end-interview-btn" class="end-btn">End Interview</button>
+                <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+                    <div class="header-controls">
+                        <button id="mute-btn" class="mute-btn" title="Mute microphone input to app (Alt+M)">
+                            <span class="mute-icon">🎤</span>
+                            <span class="mute-text">Mute</span>
+                        </button>
+                        <button id="reset-interview-btn" class="reset-btn">Reset</button>
+                        <button id="end-interview-btn" class="end-btn">End Interview</button>
+                    </div>
+                    <div id="preset-container"></div>
                 </div>
             </div>
 

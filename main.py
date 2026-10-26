@@ -59,7 +59,7 @@ class GlobalCommandMonitor:
     """Monitors the temp command file for global hotkey commands"""
     
     def __init__(self):
-        self.command_file = os.path.join(tempfile.gettempdir(), "aura_command.json")
+        self.command_file = os.path.join(tempfile.gettempdir(), "gekko_command.json")
         self.last_command_time = 0
         self.running = False
         self.websocket_manager = None
@@ -416,7 +416,7 @@ def setup_webview_window():
     """Setup and configure the webview window"""
     # Create the pywebview window, loading the FastAPI server
     window = webview.create_window(
-        'Aura',
+        'Gekko AI',
         f'http://127.0.0.1:{uvicorn_server.port}',
         width=1000,
         height=750,
@@ -444,7 +444,7 @@ def setup_webview_window():
         time.sleep(1.0)  # Give window more time to fully initialize
         
         # Find window and configure always-on-top (but NOT transparency yet)
-        if window_manager.find_aura_window():
+        if window_manager.find_gekko_window():
             print("🔍 Window found - setting up always-on-top only")
             
             # Wait a bit more before setting always-on-top
@@ -466,7 +466,7 @@ def setup_webview_window():
                 
             print("ℹ️ Transparency will be applied only during live interview")
         else:
-            print("⚠️ Could not find Aura window for window management")
+            print("⚠️ Could not find Gekko window for window management")
         
         # Start the global hotkey listener
         window_manager.window_manager.start_hotkey_listener()
@@ -485,7 +485,7 @@ def setup_webview_window():
 # --- Main Application Entry Point ---
 def main():
     """Main application entry point"""
-    print("🚀 Starting Aura with corrected asyncio-native architecture...")
+    print("🚀 Starting Gekko AI with corrected asyncio-native architecture...")
     print("   📋 Architecture: pywebview on main thread, asyncio services in background thread")
     
     try:

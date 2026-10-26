@@ -86,6 +86,7 @@ class InterviewSession:
         if self.stt_manager and not self.state.get("is_universally_muted", False):
             audio_data = bytes(payload.get('audio', []))
             self.state["is_muted"] = payload.get('is_muted', False)
+            self.state["speaker_hint"] = payload.get('speaker_hint', 'unknown')
             if audio_data:
                 await self.stt_manager.send_audio(audio_data)
 

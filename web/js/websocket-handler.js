@@ -283,10 +283,11 @@ export class WebSocketHandler {
         }
     }
 
-    sendAudioChunk(chunk, is_muted) {
+    sendAudioChunk(chunk, is_muted, speaker_hint = 'unknown') {
         this.sendMessage('audio_chunk', {
             audio: Array.from(new Uint8Array(chunk)),
-            is_muted: is_muted
+            is_muted: is_muted,
+            speaker_hint: speaker_hint
         });
     }
 

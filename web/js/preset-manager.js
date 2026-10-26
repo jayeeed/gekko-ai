@@ -54,10 +54,16 @@ class PresetManager {
     insertPresetIndicator() {
         const liveView = document.getElementById('live-view');
         if (liveView && this.presetIndicatorElement && !document.getElementById('preset-indicator')) {
-            const liveHeader = liveView.querySelector('.live-header');
-            if (liveHeader) {
-                liveHeader.appendChild(this.presetIndicatorElement);
+            const container = liveView.querySelector('#preset-container');
+            if (container) {
+                container.appendChild(this.presetIndicatorElement);
                 console.log('✅ Preset indicator added to live view');
+            } else {
+                // Fallback
+                const liveHeader = liveView.querySelector('.live-header');
+                if (liveHeader) {
+                    liveHeader.appendChild(this.presetIndicatorElement);
+                }
             }
         }
     }
@@ -73,7 +79,6 @@ class PresetManager {
                     border: 1px solid var(--border-color, #333);
                     border-radius: 6px;
                     padding: 8px 12px;
-                    margin-left: 12px;
                     backdrop-filter: blur(10px);
                     min-width: 200px;
                 }
@@ -81,64 +86,61 @@ class PresetManager {
                 .preset-header {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                    margin-bottom: 4px;
+                    gap: 6px;
+                    margin-bottom: 2px;
                 }
                 
                 .preset-label {
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: #a0aec0;
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: #94a3b8;
                     text-transform: uppercase;
-                    letter-spacing: 0.5px;
+                    letter-spacing: 0.05em;
                 }
                 
                 .preset-health-dot {
-                    width: 8px;
-                    height: 8px;
+                    width: 6px;
+                    height: 6px;
                     border-radius: 50%;
                     background: #4a5568;
                     transition: background-color 0.3s ease;
                 }
                 
                 .preset-health-dot.healthy {
-                    background: #48bb78;
-                    box-shadow: 0 0 4px rgba(72, 187, 120, 0.4);
+                    background: #10b981;
+                    box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
                 }
                 
                 .preset-health-dot.unhealthy {
-                    background: #f56565;
-                    box-shadow: 0 0 4px rgba(245, 101, 101, 0.4);
+                    background: #f43f5e;
+                    box-shadow: 0 0 6px rgba(244, 63, 94, 0.4);
                 }
                 
                 .preset-details {
                     display: flex;
                     flex-direction: column;
-                    gap: 2px;
                 }
                 
                 .preset-name {
                     font-size: 12px;
                     font-weight: 600;
-                    color: #ffffff;
+                    color: #f8fafc;
                 }
                 
                 .preset-provider {
-                    font-size: 10px;
-                    color: #718096;
-                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                    display: none; /* Hide repetitive info */
                 }
                 
                 .preset-hotkeys {
-                    margin-top: 4px;
-                    border-top: 1px solid rgba(255, 255, 255, 0.1);
-                    padding-top: 4px;
+                    margin-top: 6px;
+                    border-top: 1px solid rgba(255, 255, 255, 0.05);
+                    padding-top: 6px;
                 }
                 
                 .hotkey-hint {
                     font-size: 9px;
-                    color: #4a5568;
-                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                    color: #64748b;
+                    font-family: inherit;
                 }
                 
                 .preset-notification {

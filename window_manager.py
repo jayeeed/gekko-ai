@@ -2,14 +2,13 @@
 # This module contains the core logic for managing the application's desktop window.
 # Its primary responsibility is to apply the necessary settings to prevent the window
 # from being captured by screen recording or sharing software (e.g., Teams, Zoom, OBS).
-# This is the "stealth" feature of the Aura application.
+# This is the "stealth" feature of the Gekko application.
 
 import os
 import ctypes
 import ctypes.wintypes as wintypes
 import webview
 import time
-import tkinter as tk
 import platform
 from typing import Optional
 from threading import Thread
@@ -35,25 +34,27 @@ SW_SHOWNOACTIVATE = 4  # Show window without giving it focus - crucial for steal
 # We use the ctypes library to load functions directly from user32.dll, a core
 # Windows library for UI management. This gives us low-level control over the window.
 
-# Load the user32 library
-_user32 = ctypes.windll.user32
+# Load the user32 library (Windows only)
+_user32 = None
+if platform.system() == "Windows":
+    _user32 = ctypes.windll.user32
 
-# Define the function signature for SetWindowDisplayAffinity
-# This tells ctypes what kind of arguments the function expects (a window handle and a flag)
-# and what it returns (a boolean indicating success).
-_user32.SetWindowDisplayAffinity.restype  = wintypes.BOOL
-_user32.SetWindowDisplayAffinity.argtypes = (wintypes.HWND, wintypes.DWORD)
+    # Define the function signature for SetWindowDisplayAffinity
+    # This tells ctypes what kind of arguments the function expects (a window handle and a flag)
+    # and what it returns (a boolean indicating success).
+    _user32.SetWindowDisplayAffinity.restype  = wintypes.BOOL
+    _user32.SetWindowDisplayAffinity.argtypes = (wintypes.HWND, wintypes.DWORD)
 
-# Define the function signature for FindWindowW
-# This is a fallback method to find a window by its title if the primary method fails.
-_user32.FindWindowW.restype               = wintypes.HWND
-_user32.FindWindowW.argtypes              = (wintypes.LPCWSTR, wintypes.LPCWSTR)
+    # Define the function signature for FindWindowW
+    # This is a fallback method to find a window by its title if the primary method fails.
+    _user32.FindWindowW.restype               = wintypes.HWND
+    _user32.FindWindowW.argtypes              = (wintypes.LPCWSTR, wintypes.LPCWSTR)
 
-# Define function signatures for ShowWindow and IsWindowVisible
-_user32.ShowWindow.argtypes = (wintypes.HWND, wintypes.INT)
-_user32.ShowWindow.restype = wintypes.BOOL
-_user32.IsWindowVisible.argtypes = (wintypes.HWND,)
-_user32.IsWindowVisible.restype = wintypes.BOOL
+    # Define function signatures for ShowWindow and IsWindowVisible
+    _user32.ShowWindow.argtypes = (wintypes.HWND, wintypes.INT)
+    _user32.ShowWindow.restype = wintypes.BOOL
+    _user32.IsWindowVisible.argtypes = (wintypes.HWND,)
+    _user32.IsWindowVisible.restype = wintypes.BOOL
 
 # Screen sharing indicator detection constants
 SCREEN_SHARE_INDICATORS = [
@@ -1133,7 +1134,7 @@ class WindowManager:
         
         # Write command to a temp file that could be monitored
         temp_dir = tempfile.gettempdir()
-        command_file = os.path.join(temp_dir, "aura_command.json")
+        command_file = os.path.join(temp_dir, "gekko_command.json")
         
         with open(command_file, "w") as f:
             json.dump(command_data, f)
@@ -1172,8 +1173,8 @@ class WindowManager:
         
         # Ensure we have the handle before starting
         if not self.hwnd:
-            if not self.find_window_by_title("Aura"):
-                 print("❌ Cannot start hotkey listener: Aura window not found.")
+            if not self.find_window_by_title("Gekko AI"):
+                 print("❌ Cannot start hotkey listener: Gekko window not found.")
                  return
         
         listener_thread = Thread(target=self._start_hotkey_listener_thread, daemon=True)
@@ -1203,9 +1204,14 @@ def make_app_opaque() -> bool:
     """Make app window fully opaque"""
     return window_manager.make_opaque()
 
-def find_aura_window() -> bool:
-    """Find and set Aura window for transparency control"""
-    hwnd = window_manager.find_window_by_title("Aura")
+def find_gekko_window() -> bool:
+    """Find and set Gekko window for transparency control"""
+    hwnd = window_manager.find_window_by_title("Gekko AI")
+    if not hwnd:
+        if platform.system() == "Windows":
+            hwnd = _user32.FindWindowW(None, "Gekko AI")
+            if hwnd:
+                window_manager.set_window_handle(hwnd)
     return hwnd is not None
 
 def set_app_always_on_top(on_top: bool) -> bool:
@@ -1266,6 +1272,10 @@ def apply_capture_protection(window):
         window: The pywebview window object.
     """
     hwnd = None
+    if platform.system() != "Windows":
+        print("ℹ️ Screen capture protection is only supported on Windows. Skipping...")
+        return True
+
     print("🛡️ APPLYING SCREEN CAPTURE PROTECTION...")
 
     # --- Method 1: Get handle from pywebview's private attribute ---
@@ -1326,6 +1336,9 @@ def apply_capture_protection(window):
 
 def verify_protection(hwnd):
     """Verify that capture protection is actually applied"""
+    if platform.system() != "Windows":
+        return
+
     try:
         # Try to get current display affinity (this is a read-only check)
         print(f"🔬 Verifying protection on window {hex(hwnd)}...")
@@ -1348,7 +1361,7 @@ if __name__ == '__main__':
 
     # Create a pywebview window for testing purposes
     test_window = webview.create_window(
-        'Aura Stealth Test',
+        'Gekko Stealth Test',
         html='<h1>This window should be black in screen recordings.</h1>',
         width=800,
         height=600

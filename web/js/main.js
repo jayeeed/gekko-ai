@@ -149,15 +149,40 @@ async function startInterview() {
     hotkeyManager.setEnabled(true);
 
     const onAudioData = (audioData, speakerHint) => {
-        webSocketHandler.sendAudioChunk(audioData, muteManager.isMicrophoneMuted());
+        webSocketHandler.sendAudioChunk(audioData, muteManager.isMicrophoneMuted(), speakerHint);
     };
 
-    const processingStarted = await startAudioProcessing(micSelect.value, onAudioData);
+    const result = await startAudioProcessing(micSelect.value, onAudioData);
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 
-    if (!processingStarted) {
-        alert("Could not start audio streams. Please check permissions and try again.");
+    if (!result.success) {
+        let errorMsg = `Could not start audio: ${result.error}\n\nPlease check your microphone permissions.`;
+        if (isMac) {
+            errorMsg += "\n\nTip: On macOS, ensure 'Screen Recording' is enabled for your browser in System Settings.";
+        }
+        alert(errorMsg);
         switchView('preflight');
         return;
+    }
+
+    // Handle partial success (especially common on macOS)
+    if (!result.systemAudio || !result.screenVideo) {
+        let warningMsg = "⚠️ Gekko AI started with limited functionality:\n";
+        
+        if (!result.systemAudio) {
+            warningMsg += "\n• System Audio: DISABLED (Interviewer won't be heard)";
+        }
+        if (!result.screenVideo) {
+            warningMsg += "\n• Screen Capture: DISABLED (Vision AI / Screenshots won't work)";
+        }
+
+        if (isMac) {
+            warningMsg += "\n\nWorkaround for Mac: To capture system audio, use a virtual driver like 'BlackHole' and select it as your microphone.";
+        }
+
+        console.warn(warningMsg);
+        // Show a non-blocking toast or just log it
+        devWarn("Interview started with partial permissions", result);
     }
 
     webSocketHandler.startInterview();
@@ -297,7 +322,7 @@ function setupDeveloperShortcuts() {
     // Console helper functions
     if (isDev) {
         console.log(`
-🧪 === AURA DEVELOPER TOOLS ===
+🧪 === GEKKO AI DEVELOPER TOOLS ===
 Available testing functions:
 • testSampleMarkdown() - Test with sample markdown content  
 • testStreamingMarkdown() - Test with comprehensive scenarios

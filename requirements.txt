@@ -1,5 +1,5 @@
 pywebview[winforms]
-pywin32
+# pywin32
 fastapi
 uvicorn[standard]
 pydantic-settings

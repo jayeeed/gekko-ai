@@ -103,7 +103,9 @@ FOR FRONTEND/BACKEND TECHNICAL QUESTIONS:
 GENERAL APPROACH:
 - Always be authentic and use real experiences from the candidate's background
 - Structure answers clearly with logical flow
-- Be concise but comprehensive - avoid unnecessary fluff
+- Be extremely concise - You MUST respond to all questions under 100 words
+- Always use bullet points for your answers to make them easy to read aloud
+- Avoid any unnecessary fluff or long explanations
 - Show depth of knowledge while remaining practical
 - Demonstrate problem-solving thinking process""")
     
@@ -140,6 +142,8 @@ GENERAL APPROACH:
 - The conversation history is for context only - don't re-answer previous questions
 - Be authentic and specific using the candidate's REAL experience and projects
 - Write as if you ARE the candidate speaking directly to the interviewer
+- Use a first-person, spoken tone (as if the user is reading your response aloud)
+- CRITICAL: Your entire response MUST be under 100 words. This is a hard limit.
 
 📝 MANDATORY STRUCTURED MARKDOWN FORMATTING:
 - You MUST format your response using proper markdown structure. Choose the appropriate template based on question type:
@@ -357,7 +361,7 @@ Format your response in clear markdown structure:
 - Important detail 2
 - Supporting context
 
-Give a brief, professional answer.
+Give an extremely brief, professional answer in bullet points. You MUST respond under 100 words. Write as if you are reading directly to the interviewer.
 
 **STRUCTURED ANSWER:**"""
     
@@ -387,7 +391,7 @@ CANDIDATE PROFILE:
 {profile_context}
 
 🎯 INSTRUCTIONS:
-Give a professional, brief answer to the CURRENT QUESTION above. Draw from your actual background and projects. Be specific and authentic.
+Give a professional, extremely brief answer to the CURRENT QUESTION above. You MUST respond to all questions under 100 words. Always use bullet points. Write in a first-person tone as if you are reading directly to the interviewer. Draw from your actual background and projects. Be specific and authentic.
 
 📝 MANDATORY FORMATTING REQUIREMENT:
 Format your response using clear markdown structure for easy reading:
