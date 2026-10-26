@@ -237,9 +237,9 @@ class MultiLLMManager:
     def load_configuration(self, primary_config: Dict[str, str], secondary_config: Optional[Dict[str, str]] = None):
         """Load primary and optional secondary configurations"""
         try:
-            # Load providers from JSON using high-performance orjson
-            with open("ai_providers.json", "rb") as f:
-                providers_config = orjson.loads(f.read())
+            # Load providers configuration hydrated from .env
+            from core.provider_service import load_providers_config
+            providers_config = load_providers_config()
             
             # Setup primary provider
             primary_provider_config = next((p for p in providers_config

@@ -221,8 +221,8 @@ class VisionService:
     def _create_vision_manager(self, provider_name: str, model_name: str) -> Optional[VisionManager]:
         """Create and return a vision manager for a given provider and model."""
         try:
-            with open("ai_providers.json", "rb") as f:
-                providers_config = orjson.loads(f.read())
+            from core.provider_service import load_providers_config
+            providers_config = load_providers_config()
 
             for provider_config in providers_config:
                 if provider_config["name"] == provider_name:

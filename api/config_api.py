@@ -10,6 +10,8 @@ from core.env_utils import env_manager
 import shutil
 import os
 
+from core.provider_service import load_providers_config, save_providers_config
+
 router = APIRouter()
 
 class TransparencyRequest(BaseModel):
@@ -43,20 +45,11 @@ async def get_config():
 @router.get("/api/ai-providers")
 async def get_ai_providers():
     """
-    Reads the ai_providers.json file and returns a list of providers
-    to the frontend, excluding sensitive API keys.
+    Reads provider configurations (with models and keys loaded from .env)
+    and returns a client-safe list of providers to the frontend.
     """
     try:
-        if not os.path.exists("ai_providers.json"):
-            if os.path.exists("ai_providers.example.json"):
-                print("📝 ai_providers.json not found, creating from example...")
-                shutil.copy("ai_providers.example.json", "ai_providers.json")
-            else:
-                raise HTTPException(status_code=404, detail="ai_providers.json and example not found")
-
-        async with aiofiles.open("ai_providers.json", "rb") as f:
-            file_content = await f.read()
-            providers = orjson.loads(file_content)
+        providers = load_providers_config()
         
         # Sanitize the data before sending to the client
         client_safe_providers = [
@@ -77,37 +70,29 @@ async def get_ai_providers():
             for p in providers
         ]
         return client_safe_providers
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="ai_providers.json not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading provider config: {e}")
 
 @router.get("/api/ai-providers/full")
 async def get_ai_providers_full():
     """
-    Returns the full ai_providers.json INCLUDING API keys.
+    Returns the full provider configuration INCLUDING API keys loaded from .env.
     Used for the advanced configuration UI.
     """
     try:
-        if not os.path.exists("ai_providers.json"):
-             if os.path.exists("ai_providers.example.json"):
-                shutil.copy("ai_providers.example.json", "ai_providers.json")
-             else:
-                return []
-                
-        async with aiofiles.open("ai_providers.json", "rb") as f:
-            file_content = await f.read()
-            return orjson.loads(file_content)
+        return load_providers_config()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading full provider config: {e}")
 
 @router.post("/api/save-ai-providers")
 async def save_ai_providers(request: SaveProvidersRequest):
-    """Saves the full provider configuration to ai_providers.json."""
+    """Saves provider API keys and models to .env and metadata to ai_providers.json."""
     try:
-        async with aiofiles.open("ai_providers.json", "wb") as f:
-            await f.write(orjson.dumps(request.providers, option=orjson.OPT_INDENT_2))
-        return {"success": True, "message": "AI Providers saved successfully"}
+        success = save_providers_config(request.providers)
+        if success:
+            return {"success": True, "message": "AI Providers saved successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save provider config")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving provider config: {e}")
 
@@ -136,10 +121,7 @@ async def verify_ai_provider(request: ProviderVerifyRequest):
     Tries all available apiKeys if the first one fails.
     """
     try:
-        async with aiofiles.open("ai_providers.json", "rb") as f:
-            file_content = await f.read()
-            providers = orjson.loads(file_content)
-        
+        providers = load_providers_config()
         provider_config = next((p for p in providers if p["name"] == request.name), None)
 
         if not provider_config:
@@ -152,6 +134,8 @@ async def verify_ai_provider(request: ProviderVerifyRequest):
 
         # Try each key until one works
         for i, key in enumerate(api_keys):
+            if not key or key.startswith("YOUR_"):
+                continue
             is_valid = await verify_provider_connection(
                 base_url=provider_config.get("baseURL"),
                 api_key=key,
@@ -173,10 +157,7 @@ async def verify_vision_ai_provider(request: ProviderVerifyRequest):
     Tries all available apiKeys if the first one fails.
     """
     try:
-        async with aiofiles.open("ai_providers.json", "rb") as f:
-            file_content = await f.read()
-            providers = orjson.loads(file_content)
-        
+        providers = load_providers_config()
         provider_config = next((p for p in providers if p["name"] == request.name), None)
 
         if not provider_config:
@@ -207,6 +188,8 @@ async def verify_vision_ai_provider(request: ProviderVerifyRequest):
 
         # Try each key until one works
         for i, key in enumerate(api_keys):
+            if not key or key.startswith("YOUR_"):
+                continue
             is_valid = await verify_vision_provider_connection(
                 base_url=provider_config.get("baseURL"),
                 api_key=key,
