@@ -6,9 +6,9 @@
 
 **An invisible AI overlay that lives on your screen — answers questions, solves problems, analyzes screenshots, and feeds you real-time intelligence. Works during interviews, exams, meetings, or anything on your screen. Invisible to screen recordings. Undetectable by proctoring software. You see everything. They see nothing.**
 
-[![AI Powered](https://img.shields.io/badge/AI-Vision%20%7C%20Voice%20%7C%20Multi--Provider-purple.svg)](https://github.com)
-[![Stealth Mode](https://img.shields.io/badge/Stealth-Screen%20Capture%20Protected-green.svg)](https://github.com)
-[![Cost](https://img.shields.io/badge/Cost-Free%20%7C%20Open%20Source-brightgreen.svg)](https://github.com)
+[![AI Powered](https://img.shields.io/badge/AI-Vision%20%7C%20Voice%20%7C%20Multi--Provider-purple.svg)](https://github.com/jayeeed/gekko-ai)
+[![Stealth Mode](https://img.shields.io/badge/Stealth-Screen%20Capture%20Protected-green.svg)](https://github.com/jayeeed/gekko-ai)
+[![Cost](https://img.shields.io/badge/Cost-Free%20%7C%20Open%20Source-brightgreen.svg)](https://github.com/jayeeed/gekko-ai)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=flat&logo=windows&logoColor=white)](#-system-requirements)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 
@@ -402,7 +402,7 @@ Never leave the interview window. Control everything instantly with our ergonomi
 ### Step 1 · Clone & Install
 
 ```bash
-git clone https://github.com/Rkcr7/gekko-ai
+git clone https://github.com/jayeeed/gekko-ai.git
 cd gekko-ai
 
 click run.bat to auto install depedencies
@@ -782,7 +782,7 @@ By downloading, installing, or using Gekko AI, you acknowledge that you have rea
 ## 🤝 Contributing
 
 ```bash
-git clone https://github.com/Rkcr7/gekko-ai
+git clone https://github.com/jayeeed/gekko-ai.git
 cd gekko-ai
 Click run.bat to auto install dependecies
 OR

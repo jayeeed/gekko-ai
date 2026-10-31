@@ -8,10 +8,12 @@
 - [x] Rebranded batch launcher `run.bat` to **Gekko AI Application Launcher**.
 - [x] Rebranded contribution guide `CONTRIBUTING.md` to **Gekko AI**.
 - [x] Rebranded stealth documentation `PROCTORING_STEALTH_GUIDE.md` to **Gekko AI**.
-- [x] Comprehensive overhaul of `README.md` (all titles, alt tags, badges, comparisons, instructions, and anchors).
+- [x] Comprehensive overhaul of `README.md` (all titles, alt tags, badges, comparisons, instructions, links to `jayeeed/gekko-ai`, and anchors).
+- [x] Replaced `logo.png` with a high-resolution custom Cyberpunk Gecko mascot logo for Gekko AI.
+- [x] Rebranded all 9 screenshots in `Media/*.png` (headers, window titles, card text, pre-flight checks, and transparency overlays).
 - [x] Verified frontend (`web/index.html`, `web/js/*`, `web/css/*`) and environment templates (`.env`, `.env.example`).
 - [x] Python bytecode compilation checks on all `.py` files passed with zero errors.
-- [x] Automated repository-wide verification script passed with 0 residual legacy brand occurrences.
+- [x] Automated repository-wide verification script passed with 0 residual legacy brand occurrences in code, links, and media.
 
 ## In Progress
 - None. Task is fully achieved and verified.
