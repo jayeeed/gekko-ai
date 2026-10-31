@@ -2,18 +2,18 @@
 setlocal enabledelayedexpansion
 
 :: ====================================================
-:: Aura Application Launcher
+:: Gekko AI Application Launcher
 :: ====================================================
 :: This batch file will:
 :: 1. Check if Python is installed
 :: 2. Create a virtual environment if needed
 :: 3. Install dependencies from requirements.txt
-:: 4. Launch the Aura application
+:: 4. Launch the Gekko AI application
 :: ====================================================
 
 echo.
 echo ====================================================
-echo           AURA APPLICATION LAUNCHER
+echo           GEKKO AI APPLICATION LAUNCHER
 echo ====================================================
 echo.
 
@@ -85,7 +85,7 @@ if not exist ".env" (
 )
 
 :: Launch the application
-echo [5/5] Starting Aura application...
+echo [5/5] Starting Gekko AI application...
 echo    Launching main.py...
 echo.
 echo ====================================================

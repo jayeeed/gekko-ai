@@ -1297,9 +1297,10 @@ def apply_capture_protection(window):
     # --- Method 3: Try multiple search attempts with delay ---
     if not hwnd:
         print("⚠️ Trying multiple search attempts...")
+        target_title = window.title if hasattr(window, 'title') and window.title else "Gekko AI"
         for attempt in range(5):
             time.sleep(0.05)
-            hwnd = _user32.FindWindowW(None, "Aura")
+            hwnd = _user32.FindWindowW(None, target_title)
             if hwnd:
                 print(f"🔍 Method 3 (attempt {attempt + 1}): Found {hex(hwnd)}")
                 break

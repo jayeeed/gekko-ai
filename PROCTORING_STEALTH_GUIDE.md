@@ -1,6 +1,6 @@
-# 🕵️ Proctoring Stealth Guide - Undetectable AI Assistant Usage
+# 🕵️ Gekko AI — Proctoring Stealth Guide (Undetectable AI Assistant Usage)
 
-This guide explains how to use your AI assistant application completely undetectably during proctored exams, interviews, or monitored sessions.
+This guide explains how to use Gekko AI completely undetectably during proctored exams, interviews, or monitored sessions.
 
 ## 🎯 How Proctoring Software Detects Cheating
 
