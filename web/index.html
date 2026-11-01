@@ -44,6 +44,15 @@
             <div class="tab-content">
                 <!-- Tab 1: Profile -->
                 <div id="profile-tab" class="tab-pane active">
+                    <div class="interview-type-control">
+                        <label for="interview-type">Interview type</label>
+                        <select id="interview-type">
+                            <option value="general">General interview</option>
+                            <option value="phd">PhD interview</option>
+                        </select>
+                    </div>
+                    <details id="general-profile" class="profile-disclosure" open>
+                        <summary>General interview profile <span>Candidate profile, focus and job description</span></summary>
                     <div class="onboarding-grid">
                         <fieldset class="grid-span-1">
                             <legend>Candidate Profile <button type="button" id="fill-demo-btn" class="demo-fill-btn"
@@ -72,6 +81,31 @@
                             <textarea id="user-objectives" placeholder="Paste the job description or key requirements here to give the AI context."></textarea>
                         </fieldset>
                     </div>
+                    </details>
+                    <section id="phd-section" class="phd-section" aria-labelledby="phd-heading" hidden>
+                        <div class="phd-heading">
+                            <div><h2 id="phd-heading">PhD interview</h2>
+                                <p>Build a source-backed context for your conversation with a professor.</p></div>
+                        </div>
+                        <p class="phd-note">Sources are stored locally on this device until you remove them. Add only material you are comfortable sending to your selected AI provider.</p>
+                        <div class="phd-source-form">
+                            <h3>Add profile files</h3>
+                            <label for="phd-category">Profile files are for</label>
+                            <select id="phd-category">
+                                <option value="candidate">My profile</option>
+                                <option value="professor">Professor</option>
+                            </select>
+                            <label for="phd-file">Markdown or LaTeX files</label>
+                            <input id="phd-file" type="file" accept=".md,.tex,.latex" multiple>
+                            <small class="phd-upload-hint">Select one or more files for the chosen profile. Markdown (.md) and LaTeX (.tex or .latex) only · 5 MB per file.</small>
+                            <button type="button" id="phd-upload" class="phd-action">Add files to knowledge bank</button>
+                        </div>
+                        <div class="phd-library-heading"><div><h3>Knowledge bank</h3><p>Relevant passages are used when answering interview questions.</p></div>
+                            <a href="/api/phd/memory" target="_blank" rel="noopener">View memory</a></div>
+                        <p id="phd-status" class="phd-status" role="status" aria-live="polite"></p>
+                        <ul id="phd-source-list" class="phd-source-list" aria-label="Added sources"></ul>
+                        <button type="button" id="phd-clear" class="phd-link phd-clear" hidden>Remove all sources</button>
+                    </section>
                 </div>
 
                 <!-- Tab 2: AI Setup -->

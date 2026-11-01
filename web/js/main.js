@@ -1,3 +1,4 @@
+import { setupPhdSources } from './phd-sources.js';
 // Modular main.js - Entry point and coordination
 import { StateManager } from './state-manager.js';
 import { WebSocketHandler } from './websocket-handler.js';
@@ -310,6 +311,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     setupDeveloperShortcuts();
     setupPresetHotkeys();
     setupTabs();
+    setupPhdSources();
     hotkeyManager.setEnabled(false);
     switchView('onboarding');
 });

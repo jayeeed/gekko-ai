@@ -471,6 +471,16 @@ silent_run.vbs
 
 > **💡 Tip:** Click the **⚡ Demo** button on the profile tab to instantly fill the form with sample data for quick testing.
 
+### PhD interview preparation
+
+1. Under **Your Profile**, choose **PhD interview**. The general candidate profile, interview focus, and job description are optional in this mode.
+2. Choose **My profile** or **Professor**, then select one or more Markdown (`.md`) or LaTeX (`.tex` or `.latex`) files. Put the details you want considered in those files; professor information is supplied by you and is not scraped. If your profile files contain GitHub repository links, Gekko can look up those public repositories when an interview question asks about a project.
+3. Select a provider and model in **AI Setup**. To use the configured Gemini key, select **Gemini** as the primary provider and choose a Gemini model. Continue through device setup as usual. Live transcription also requires a valid Deepgram key and microphone permissions.
+
+The knowledge bank stores extracted text and a generated `memory.md` in the local, git-ignored `.phd_knowledge/` directory. It stays there until sources are removed in the app. **View memory** shows the stored profile files and possible connections based on shared terms; these links are suggestions rather than verified facts. Interview questions retrieve relevant source passages using keyword matching. For project questions, public GitHub links in your profile files can trigger a live lookup of repository details, the README, and a small number of relevant documentation or source files. Scraped repository content is added to that answer's context only; it is not stored in the knowledge bank. Private, deleted, or rate-limited repositories may not be available. Responses can still be incomplete or incorrect, so review them against your sources.
+
+Files are limited to 5 MB, extracted text to 200,000 characters per source, and the bank to 30 files. LaTeX files using `\\input` or `\\include` must be combined first. The app attempts to redact configured keys and common credential patterns, but this is not a substitute for removing secrets from source material before adding it.
+
 ---
 
 ## 🔑 Obtaining API Keys (All Free!)

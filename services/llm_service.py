@@ -98,7 +98,11 @@ class LLMManager:
         self.context_manager.add_conversation_exchange(question)
         
         # Generate prompt with persistent context
-        prompt = get_interview_answer_prompt(question, self.context_manager)
+        github_evidence = ""
+        if self.context_manager.persistent_context.get('interview_type') == 'phd':
+            from services.github_research import fetch_project_evidence
+            github_evidence = await fetch_project_evidence(question)
+        prompt = get_interview_answer_prompt(question, self.context_manager, github_evidence)
         
         print(f"🎯 Processing with {self.provider_name}-{self.model_name}: '{question[:100]}...'")
         

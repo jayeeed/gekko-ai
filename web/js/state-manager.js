@@ -82,11 +82,13 @@ export class StateManager {
     }
 
     handleOnboarding() {
+        const isPhd = document.getElementById('interview-type')?.value === 'phd';
+        if (isPhd && window.phdSourcesBusy) {
+            alert('Please wait for the current source to finish processing.');
+            return false;
+        }
         const requiredFields = {
-            'user-name': 'Name',
-            'user-company': 'Company',
-            'user-role': 'Role',
-            'user-resume': 'Resume',
+            ...(!isPhd ? { 'user-name': 'Name', 'user-company': 'Company', 'user-role': 'Role', 'user-resume': 'Resume' } : {}),
             'ai-provider-select': 'AI Provider',
             'ai-model-select': 'AI Model'
         };
@@ -103,7 +105,7 @@ export class StateManager {
         }
 
         const focusCheckboxes = Array.from(this.onboardingForm.focusCheckboxes || []).filter(cb => cb.checked);
-        if (focusCheckboxes.length === 0) {
+        if (!isPhd && focusCheckboxes.length === 0) {
             alert('Please select at least one Interview Focus.');
             allValid = false;
         }
@@ -153,6 +155,7 @@ export class StateManager {
             .map(cb => cb.value);
 
         this.appState.onboardingData = {
+            interviewType: isPhd ? 'phd' : 'general',
             name: this.onboardingForm.name?.value || '',
             company: this.onboardingForm.company?.value || '',
             role: this.onboardingForm.role?.value || '',

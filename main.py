@@ -27,7 +27,7 @@ if not _env_path.exists() and _env_example_path.exists():
 elif not _env_path.exists() and not _env_example_path.exists():
     print("⚠️ No .env or .env.example found. The app may fail to start without a .env file.")
 
-from api import websocket, config_api
+from api import websocket, config_api, phd_knowledge
 from api.session_manager import session_manager
 from core.config import settings, print_config_debug
 
@@ -254,6 +254,7 @@ command_monitor = GlobalCommandMonitor()
 app = FastAPI()
 app.include_router(websocket.router)
 app.include_router(config_api.router)
+app.include_router(phd_knowledge.router)
 
 # Mount the 'web' directory to serve static files (CSS, JS)
 # This makes files in 'web/css' and 'web/js' available under '/static/css' and '/static/js'

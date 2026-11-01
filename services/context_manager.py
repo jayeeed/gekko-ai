@@ -45,6 +45,7 @@ class PersistentContextManager:
             'complete_resume': onboarding_data.get('resume', ''),  # FULL CONTENT
             'complete_job_description': onboarding_data.get('objectives', ''),  # FULL CONTENT
             'focus_areas': onboarding_data.get('focus', []),
+            'interview_type': onboarding_data.get('interviewType', 'general'),
             'created_at': datetime.now().isoformat()
         })
         self.is_initialized = True
@@ -121,7 +122,7 @@ class PersistentContextManager:
     
     def ensure_context_available(self) -> bool:
         """Verify persistent context is properly initialized"""
-        return self.is_initialized and bool(self.persistent_context.get('candidate_name'))
+        return self.is_initialized and (self.persistent_context.get('interview_type') == 'phd' or bool(self.persistent_context.get('candidate_name')))
 
     def reset_conversation_history(self):
         """Resets the conversation history."""
