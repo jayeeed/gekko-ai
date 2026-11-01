@@ -30,6 +30,8 @@ class InterviewSession:
         }
         self.transcript_buffer: str = ""
         self.silence_timer: Optional[asyncio.Task] = None
+        self._ai_tasks = set()
+        self._ai_lock = asyncio.Lock()
         self.last_activity_time: float = time.time()
 
     def _touch(self):
@@ -182,6 +184,9 @@ class InterviewSession:
         self.transcript_buffer = ""
         if self.silence_timer:
             self.silence_timer.cancel()
+            self.silence_timer = None
+        for task in self._ai_tasks:
+            task.cancel()
         
         if self.llm_manager:
             self.llm_manager.reset_context()
@@ -214,28 +219,48 @@ class InterviewSession:
         
         self.is_active = True
 
-    async def _process_aggregated_transcript(self):
-        """Processes the buffered transcript after a period of silence."""
+    def _dispatch_transcript(self, final_received_at):
+        """Hand off a completed utterance without blocking Deepgram's event handler."""
         if not self.transcript_buffer:
             return
-
         transcript = self.transcript_buffer
         self.transcript_buffer = ""
-        
-        print(f"✅ Silence detected. Processing transcript for session {self.session_id}: {transcript}")
+        task = asyncio.create_task(self._process_aggregated_transcript(transcript, final_received_at))
+        self._ai_tasks.add(task)
+        task.add_done_callback(self._ai_tasks.discard)
+
+    async def _process_aggregated_transcript(self, transcript, final_received_at):
+        """Stream one utterance to the AI in conversation order."""
         if not self.llm_manager or not self.websocket:
             return
 
         try:
-            await self._send_json("ai_processing_started", {"question": transcript})
+            async with self._ai_lock:
+                print(f"✅ Processing transcript for session {self.session_id}: {transcript}")
+                await self._send_json("ai_processing_started", {"question": transcript})
+                request_started_at = time.perf_counter()
+                first_chunk_at = None
 
-            async def stream_callback(chunk: str, chunk_type: str):
-                return await self._send_json("ai_answer_chunk", {"chunk": chunk, "chunk_type": chunk_type})
+                async def stream_callback(chunk: str, chunk_type: str):
+                    nonlocal first_chunk_at
+                    if chunk and first_chunk_at is None:
+                        first_chunk_at = time.perf_counter()
+                        print(
+                            f"⏱️ Session {self.session_id}: final-to-first-chunk "
+                            f"{(first_chunk_at - final_received_at) * 1000:.0f} ms; "
+                            f"Luna request-to-first-chunk "
+                            f"{(first_chunk_at - request_started_at) * 1000:.0f} ms"
+                        )
+                    return await self._send_json("ai_answer_chunk", {"chunk": chunk, "chunk_type": chunk_type})
 
-            answer, result_info = await self.llm_manager.get_ai_answer(transcript, stream_callback)
-            
-            await self._send_json("ai_answer_complete", {"answer": answer, **result_info})
-            print(f"🤖 AI STREAMING COMPLETE for session {self.session_id}")
+                answer, result_info = await self.llm_manager.get_ai_answer(transcript, stream_callback)
+                result_info["latency_ms"] = {
+                    "final_to_first_chunk": round((first_chunk_at - final_received_at) * 1000) if first_chunk_at else None,
+                    "request_to_first_chunk": round((first_chunk_at - request_started_at) * 1000) if first_chunk_at else None,
+                    "final_to_complete": round((time.perf_counter() - final_received_at) * 1000),
+                }
+                await self._send_json("ai_answer_complete", {"answer": answer, **result_info})
+                print(f"🤖 AI STREAMING COMPLETE for session {self.session_id}")
 
         except Exception as e:
             print(f"❌ CRITICAL: Error processing transcript for session {self.session_id}: {e}")
@@ -247,26 +272,27 @@ class InterviewSession:
             return
 
         self._touch()
+        received_at = time.perf_counter()
         await self._send_json("transcript_update", data)
 
         transcript = data.get('transcript', '').strip()
         is_final = data.get('is_final', False)
-
-        if transcript:
-            if self.silence_timer:
-                self.silence_timer.cancel()
-            
-            async def delayed_processing():
-                await asyncio.sleep(1.5)
-                await self._process_aggregated_transcript()
-            
-            self.silence_timer = asyncio.create_task(delayed_processing())
 
         speaker = data.get('speaker')
         should_process = self.state.get("is_muted") or self.state.get("process_all_speakers") or (speaker == 0)
 
         if is_final and should_process:
             self.transcript_buffer = (self.transcript_buffer + " " + transcript).strip()
+            if self.silence_timer:
+                self.silence_timer.cancel()
+                self.silence_timer = None
+            if data.get('speech_final'):
+                self._dispatch_transcript(received_at)
+            else:
+                async def fallback_processing():
+                    await asyncio.sleep(0.8)
+                    self._dispatch_transcript(received_at)
+                self.silence_timer = asyncio.create_task(fallback_processing())
         elif is_final and not should_process:
             if self.llm_manager:
                 self.llm_manager.process_candidate_response(transcript)
@@ -277,6 +303,8 @@ class InterviewSession:
             await self.stt_manager.finish()
         if self.silence_timer and not self.silence_timer.done():
             self.silence_timer.cancel()
+        for task in self._ai_tasks:
+            task.cancel()
         self.is_active = False
         print(f"Session {self.session_id} cleaned up.")
 

@@ -9,6 +9,11 @@ class MixedProcessor extends AudioWorkletProcessor {
         super();
         this.micInputIndex = 0;
         this.systemInputIndex = 1;
+        // 2048 samples at 48 kHz is about 43 ms per packet.
+        this.packet = new Int16Array(2048);
+        this.packetLength = 0;
+        this.micLevelSum = 0;
+        this.systemLevelSum = 0;
     }
 
     process(inputs, outputs, parameters) {
@@ -19,40 +24,28 @@ class MixedProcessor extends AudioWorkletProcessor {
         const frameLength = Math.max(micInput.length, systemInput.length);
         if (frameLength === 0) return true;
 
-        // Mix the audio and calculate volume levels
-        const mixedAudio = new Float32Array(frameLength);
-        let micLevel = 0;
-        let systemLevel = 0;
-
+        // Mix and encode into small packets to avoid flooding the WebSocket.
         for (let i = 0; i < frameLength; i++) {
             const micSample = i < micInput.length ? micInput[i] : 0;
             const systemSample = i < systemInput.length ? systemInput[i] : 0;
-            
-            // Mix the audio (simple addition with slight attenuation)
-            mixedAudio[i] = (micSample + systemSample) * 0.7;
-            
-            // Track volume levels
-            micLevel += Math.abs(micSample);
-            systemLevel += Math.abs(systemSample);
+            const s = Math.max(-1, Math.min(1, (micSample + systemSample) * 0.7));
+            this.packet[this.packetLength++] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            this.micLevelSum += Math.abs(micSample);
+            this.systemLevelSum += Math.abs(systemSample);
+
+            if (this.packetLength === this.packet.length) {
+                const pcmData = this.packet;
+                this.port.postMessage({
+                    audioData: pcmData.buffer,
+                    micLevel: this.micLevelSum / pcmData.length,
+                    systemLevel: this.systemLevelSum / pcmData.length
+                }, [pcmData.buffer]);
+                this.packet = new Int16Array(2048);
+                this.packetLength = 0;
+                this.micLevelSum = 0;
+                this.systemLevelSum = 0;
+            }
         }
-
-        // Average the volume levels
-        micLevel /= frameLength;
-        systemLevel /= frameLength;
-
-        // Convert to 16-bit PCM
-        const pcmData = new Int16Array(frameLength);
-        for (let i = 0; i < frameLength; i++) {
-            const s = Math.max(-1, Math.min(1, mixedAudio[i]));
-            pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-
-        // Send mixed audio with volume levels for speaker detection
-        this.port.postMessage({
-            audioData: pcmData.buffer,
-            micLevel: micLevel,
-            systemLevel: systemLevel
-        }, [pcmData.buffer]);
 
         return true;
     }

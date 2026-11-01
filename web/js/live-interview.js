@@ -361,7 +361,7 @@ class LiveInterviewUI {
                 this.conversationStream.appendChild(this.currentInterviewerElement);
                 this.updateEmptyState();
             }
-            this.updateInterviewerMessage(this.currentInterviewerElement.querySelector('.streaming-text').textContent + ' ' + question);
+            this.updateInterviewerMessage(question);
         } else {
             if (this.currentInterviewerElement) {
                 this.finalizeInterviewerMessage(question);
@@ -397,7 +397,7 @@ class LiveInterviewUI {
                 this.conversationStream.appendChild(this.currentCandidateElement);
                 this.updateEmptyState();
             }
-            this.updateCandidateMessage(this.currentCandidateElement.querySelector('.streaming-text').textContent + ' ' + transcript);
+            this.updateCandidateMessage(transcript);
         } else {
             if (this.currentCandidateElement) {
                 this.finalizeCandidateMessage(transcript);
@@ -1580,4 +1580,4 @@ window.isThinkingFilterEnabled = () => {
 };
 
 
-export default window.liveInterviewUI; 
+export default window.liveInterviewUI;

@@ -49,6 +49,7 @@ class DeepgramManager:
         self._reconnect_attempts = 0
         self._max_reconnect_attempts = 5
         self._reconnect_base_delay = 1.0  # seconds
+        self._last_interim = None
         
         # No buffering - process final results immediately for faster response
         
@@ -195,8 +196,8 @@ class DeepgramManager:
             diarize=False,
             punctuate=True,
             # Critical speech detection parameters
-            utterance_end_ms=1000,    # Wait 1.2 seconds after speech ends to finalize
-            endpointing=600,          # Wait 0.8 seconds of silence before endpoint detection
+            utterance_end_ms=1000,
+            endpointing=350,          # Detect a short pause and mark speech_final promptly
             # Additional settings
             vad_events=True,          # Enable VAD for better pause handling
             interim_results=True,     # Enable interim results for real-time feedback
@@ -262,9 +263,7 @@ class DeepgramManager:
                     # Check if this is a final result or interim
                     is_final = getattr(result, 'is_final', True)
                     
-                    # Debug logging to track final vs interim
-                    result_type = "FINAL" if is_final else "interim"
-                    print(f"🔍 Deepgram result type: {result_type}, is_final: {is_final}")
+                    speech_final = getattr(result, 'speech_final', False)
                     
                     # Get speaker from words array (Deepgram's diarization format)
                     speaker = 0  # Default to candidate (when diarization is disabled, all speech is from speaker 0)
@@ -286,10 +285,14 @@ class DeepgramManager:
                         pass
                     
                     if is_final:
+                        self._last_interim = None
                         # Process final results immediately - no buffering
                         print(f"✅ FINAL RESULT: Speaker {speaker} - '{transcript.strip()}'")
-                        await self.send_final_result(speaker, transcript.strip())
+                        await self.send_final_result(speaker, transcript.strip(), speech_final)
                     else:
+                        if self._last_interim == (speaker, transcript.strip()):
+                            return
+                        self._last_interim = (speaker, transcript.strip())
                         # Show interim results immediately for real-time feedback
                         print(f"📝 TRANSCRIPT (interim): Speaker {speaker} - '{transcript.strip()}'")
                         
@@ -306,14 +309,15 @@ class DeepgramManager:
 
     # Removed buffering system - final results are now processed immediately
 
-    async def send_final_result(self, speaker, transcript):
+    async def send_final_result(self, speaker, transcript, speech_final=False):
         """Send the final result to the callback."""
         print(f"📝 TRANSCRIPT (FINAL): Speaker {speaker} - '{transcript}'")
         
         transcript_data = {
             "speaker": speaker,
             "transcript": transcript,
-            "is_final": True
+            "is_final": True,
+            "speech_final": speech_final
         }
         await self.transcript_callback(transcript_data)
 
