@@ -94,6 +94,7 @@ class GithubResearchTests(unittest.TestCase):
             def __init__(self, **kwargs): raise AssertionError('Non-project question must not access GitHub')
         with patch.object(github.httpx,'AsyncClient',ForbiddenClient):
             self.assertEqual(asyncio.run(github.fetch_project_evidence('Why do I want to work with this professor?')), '')
+            self.assertEqual(asyncio.run(github.fetch_project_evidence('How does my sensor toolkit experience relate to research?')), '')
         source=self.temp.list()[0]
         self.temp.delete(source['id'])
         self.assertEqual(asyncio.run(github.fetch_project_evidence('Tell me about my project implementation')), '')

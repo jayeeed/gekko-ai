@@ -208,7 +208,7 @@ export class WebSocketHandler {
     }
 
     handleAiAnswerChunk(payload) {
-        liveInterviewUI.appendStreamingChunk(payload.chunk);
+        liveInterviewUI.appendStreamingChunk(payload.chunk, payload.request_id);
     }
 
     handleAiAnswerComplete(payload) {

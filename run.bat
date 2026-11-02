@@ -1,5 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
+cd /d "%~dp0"
+if errorlevel 1 exit /b 1
 
 :: ====================================================
 :: Aura Application Launcher
@@ -95,7 +97,7 @@ echo.
 echo Press Ctrl+C to stop the application
 echo.
 
-python main.py
+python -X utf8 main.py
 
 :: Handle application exit
 echo.

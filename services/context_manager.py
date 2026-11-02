@@ -77,8 +77,9 @@ class PersistentContextManager:
         max_history = settings.MAX_CONVERSATION_HISTORY
         if len(self.conversation_history) > max_history:
             self.conversation_history = self.conversation_history[-max_history:]
+        return exchange
     
-    def add_ai_response(self, ai_response: str, response_type: str = "normal"):
+    def add_ai_response(self, ai_response: str, response_type: str = "normal", exchange=None):
         """Add AI response to conversation history"""
         # Prefix vision analysis responses to distinguish them
         if response_type == "vision":
@@ -88,7 +89,9 @@ class PersistentContextManager:
         filtered_ai_response = filter_thinking_content(ai_response)
         
         # Add to the last exchange if it exists, otherwise create a new one
-        if self.conversation_history:
+        if exchange is not None:
+            exchange['ai_response'] = filtered_ai_response
+        elif self.conversation_history:
             self.conversation_history[-1]['ai_response'] = filtered_ai_response
         else:
             # Create a new exchange with just the AI response

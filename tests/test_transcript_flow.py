@@ -4,9 +4,19 @@ from types import SimpleNamespace
 
 from api.session_manager import InterviewSession
 from services.stt_service import DeepgramManager
+from services.context_manager import PersistentContextManager
 
 
 class TranscriptFlowTests(unittest.IsolatedAsyncioTestCase):
+    async def test_concurrent_answers_attach_to_their_questions(self):
+        context = PersistentContextManager()
+        first = context.add_conversation_exchange("Experience?")
+        second = context.add_conversation_exchange("Experience on Kafka?")
+        context.add_ai_response("Kafka answer", exchange=second)
+        context.add_ai_response("Experience answer", exchange=first)
+        self.assertEqual(first["ai_response"], "Experience answer")
+        self.assertEqual(second["ai_response"], "Kafka answer")
+
     async def test_repeated_interims_are_displayed_once_and_final_keeps_endpoint(self):
         received = []
 
@@ -90,6 +100,39 @@ class TranscriptFlowTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(0.85)
         await asyncio.gather(*list(session._ai_tasks))
         self.assertEqual(processed, ["Fallback question?"])
+
+    async def test_luna_requests_overlap_and_keep_their_own_stream_ids(self):
+        session = InterviewSession("test")
+        session.websocket = object()
+        events = []
+        first_started = asyncio.Event()
+        release_first = asyncio.Event()
+
+        async def send_json(kind, payload):
+            events.append((kind, payload))
+
+        class FakeLLM:
+            async def get_ai_answer(self, question, callback):
+                if question == "Experience?":
+                    first_started.set()
+                    await release_first.wait()
+                await callback(question, "chunk")
+                return question, {"success": True}
+
+        session._send_json = send_json
+        session.llm_manager = FakeLLM()
+        await session.on_transcript({"speaker": 0, "transcript": "Experience?", "is_final": True, "speech_final": True})
+        await first_started.wait()
+        await session.on_transcript({"speaker": 0, "transcript": "Experience on Kafka?", "is_final": True, "speech_final": True})
+        await asyncio.sleep(0.05)
+        complete = [payload for kind, payload in events if kind == "ai_answer_complete"]
+        self.assertEqual([item["answer"] for item in complete], ["Experience on Kafka?"])
+        release_first.set()
+        await asyncio.gather(*list(session._ai_tasks))
+        started = [payload for kind, payload in events if kind == "ai_processing_started"]
+        chunks = [payload for kind, payload in events if kind == "ai_answer_chunk"]
+        self.assertEqual(len({item["request_id"] for item in started}), 2)
+        self.assertEqual({item["request_id"] for item in chunks}, {item["request_id"] for item in started})
 
 
 if __name__ == "__main__":

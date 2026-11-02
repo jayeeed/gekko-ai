@@ -227,7 +227,9 @@ async def _fetch_file(client, ref, branch, path):
 
 async def fetch_project_evidence(question):
     """Fetch current public repository details linked from candidate Markdown/LaTeX files for project questions."""
-    refs = _rank_repositories(question, candidate_repositories())
+    if not PROJECT_QUESTION.search(question):
+        return ''
+    refs = _rank_repositories(question, await asyncio.to_thread(candidate_repositories))
     if not refs:
         return ''
     _prune_cache(datetime.now(timezone.utc))

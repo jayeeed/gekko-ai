@@ -31,7 +31,8 @@ export class ConfigManager {
             const dResp = await fetch('/api/deepgram-key');
             const dData = await dResp.json();
             if (this.elements.deepgramKey) {
-                this.elements.deepgramKey.value = dData.key || '';
+                this.elements.deepgramKey.value = '';
+                this.elements.deepgramKey.placeholder = dData.configured ? 'Key saved - enter a new key to replace it' : 'DEEPGRAM_API_KEY';
             }
 
             this.renderProviders();
@@ -60,7 +61,43 @@ export class ConfigManager {
 
             // Name Cell
             const nameTd = document.createElement('td');
-            nameTd.innerHTML = `<strong>${provider.name}</strong><br><small>${provider.baseURL}</small>`;
+            const title = document.createElement('strong');
+            title.textContent = provider.name;
+            nameTd.appendChild(title);
+            for (const [label, field, value] of [
+                ['Base URL', 'baseURL', provider.baseURL || ''],
+                ['Text models (comma separated)', 'models', (provider.models || []).map(m => m.modelName || m).join(',')],
+                ['Default text model', 'defaultModel', provider.defaultModel || '']
+            ]) {
+                const caption = document.createElement('label');
+                caption.textContent = label;
+                caption.style.display = 'block';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = value;
+                input.placeholder = label;
+                input.addEventListener('input', () => {
+                    provider[field] = field === 'models'
+                        ? input.value.split(',').map(item => item.trim()).filter(Boolean)
+                        : input.value.trim();
+                });
+                caption.appendChild(input);
+                nameTd.appendChild(caption);
+            }
+            for (const [label, field] of [['Primary text default', 'defaultPrimary'], ['Secondary text default', 'defaultSecondary']]) {
+                const caption = document.createElement('label');
+                caption.style.display = 'block';
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = field;
+                radio.checked = Boolean(provider[field]);
+                radio.addEventListener('change', () => {
+                    this.providers.forEach(item => { item[field] = item === provider; });
+                });
+                caption.appendChild(radio);
+                caption.appendChild(document.createTextNode(label));
+                nameTd.appendChild(caption);
+            }
             tr.appendChild(nameTd);
 
             // Keys Cell
@@ -68,60 +105,18 @@ export class ConfigManager {
             const keyListDiv = document.createElement('div');
             keyListDiv.className = 'key-list';
 
-            const apiKeys = provider.apiKeys || [provider.apiKey || ''];
-
-            apiKeys.forEach((key, kIndex) => {
-                const group = document.createElement('div');
-                group.className = 'key-input-group';
-
-                const input = document.createElement('input');
-                input.type = 'password';
-                input.value = key;
-                input.placeholder = `API Key ${kIndex + 1}`;
-                input.addEventListener('input', (e) => {
-                    if (provider.apiKeys) {
-                        provider.apiKeys[kIndex] = e.target.value;
-                    } else {
-                        provider.apiKey = e.target.value;
-                    }
-                });
-
-                group.appendChild(input);
-
-                if (apiKeys.length > 1 || provider.apiKeys) {
-                    const removeBtn = document.createElement('button');
-                    removeBtn.className = 'remove-key-btn';
-                    removeBtn.textContent = '×';
-                    removeBtn.title = 'Remove key';
-                    removeBtn.onclick = () => {
-                        if (provider.apiKeys) {
-                            provider.apiKeys.splice(kIndex, 1);
-                        } else {
-                            provider.apiKeys = []; // Convert to array if removing the last single key
-                        }
-                        this.renderProviders();
-                    };
-                    group.appendChild(removeBtn);
-                }
-
-                keyListDiv.appendChild(group);
+            const savedCount = document.createElement('small');
+            savedCount.textContent = provider.keyCount ? `${provider.keyCount} key(s) saved` : 'No key saved';
+            keyListDiv.appendChild(savedCount);
+            const input = document.createElement('input');
+            input.type = 'password';
+            input.autocomplete = 'new-password';
+            input.placeholder = 'New API key(s), comma separated';
+            input.addEventListener('input', () => {
+                provider.apiKeys = input.value.split(',').map(key => key.trim()).filter(Boolean);
             });
-
-            const addKeyBtn = document.createElement('button');
-            addKeyBtn.className = 'add-key-btn';
-            addKeyBtn.textContent = '+';
-            addKeyBtn.title = 'Add API key for rotation';
-            addKeyBtn.onclick = () => {
-                if (!provider.apiKeys) {
-                    provider.apiKeys = [provider.apiKey || ''];
-                    delete provider.apiKey;
-                }
-                provider.apiKeys.push('');
-                this.renderProviders();
-            };
-
+            keyListDiv.appendChild(input);
             keysTd.appendChild(keyListDiv);
-            keysTd.appendChild(addKeyBtn);
             tr.appendChild(keysTd);
 
             // Actions Cell
@@ -143,14 +138,15 @@ export class ConfigManager {
         btn.disabled = true;
 
         try {
-            // Use the first key for test
-            const testKey = provider.apiKeys ? provider.apiKeys[0] : provider.apiKey;
+            if (provider.apiKeys?.length) {
+                alert('Save the new API key before testing the connection.');
+                return;
+            }
+            const testKey = provider.keyCount;
             const testModel = provider.defaultModel || (provider.models[0]?.modelName || provider.models[0]);
 
-            if (!testKey) {
-                alert('Please enter an API key first');
-                btn.textContent = originalText;
-                btn.disabled = false;
+            if (!testKey || !provider.baseURL || !testModel) {
+                alert('Save an API key, base URL, and default model before testing.');
                 return;
             }
 
@@ -186,11 +182,15 @@ export class ConfigManager {
                 btn.textContent = originalText;
                 btn.disabled = false;
             }, 3000);
+        } finally {
+            btn.disabled = false;
+            if (btn.textContent === 'Testing...') btn.textContent = originalText;
         }
     }
 
     async saveDeepgramKey() {
         const key = this.elements.deepgramKey.value;
+        if (!key) return;
         const btn = this.elements.saveDeepgramBtn;
         const originalText = btn.textContent;
 
@@ -206,6 +206,8 @@ export class ConfigManager {
 
             if (resp.ok) {
                 btn.textContent = '✅ Saved';
+                this.elements.deepgramKey.value = '';
+                this.elements.deepgramKey.placeholder = 'Key saved - enter a new key to replace it';
                 devLog('Deepgram key saved successfully');
             } else {
                 btn.textContent = '❌ Failed';
@@ -239,6 +241,7 @@ export class ConfigManager {
             if (resp.ok) {
                 btn.textContent = '✅ All Changes Saved';
                 devLog('AI Providers saved successfully');
+                await this.loadInitialData();
 
                 // Trigger reload in provider manager if available
                 if (window.providerManager) {

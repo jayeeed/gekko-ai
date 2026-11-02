@@ -31,7 +31,7 @@ class InterviewSession:
         self.transcript_buffer: str = ""
         self.silence_timer: Optional[asyncio.Task] = None
         self._ai_tasks = set()
-        self._ai_lock = asyncio.Lock()
+        self._ws_lock = asyncio.Lock()
         self.last_activity_time: float = time.time()
 
     def _touch(self):
@@ -42,7 +42,8 @@ class InterviewSession:
         """Safely sends a JSON message to the client's websocket."""
         if self.websocket:
             self._touch()
-            await send_json(self.websocket, type, payload)
+            async with self._ws_lock:
+                await send_json(self.websocket, type, payload)
 
     async def handle_verify_deepgram(self, payload: dict):
         """Handles the deepgram verification request from the client."""
@@ -225,43 +226,41 @@ class InterviewSession:
             return
         transcript = self.transcript_buffer
         self.transcript_buffer = ""
+        print(f"[latency] session={self.session_id} stage=question_dispatch wait_after_final_ms={round((time.perf_counter() - final_received_at) * 1000)}")
         task = asyncio.create_task(self._process_aggregated_transcript(transcript, final_received_at))
         self._ai_tasks.add(task)
         task.add_done_callback(self._ai_tasks.discard)
 
     async def _process_aggregated_transcript(self, transcript, final_received_at):
-        """Stream one utterance to the AI in conversation order."""
+        """Stream an utterance independently of other in-flight requests."""
         if not self.llm_manager or not self.websocket:
             return
 
         try:
-            async with self._ai_lock:
-                print(f"✅ Processing transcript for session {self.session_id}: {transcript}")
-                await self._send_json("ai_processing_started", {"question": transcript})
-                request_started_at = time.perf_counter()
-                first_chunk_at = None
-
-                async def stream_callback(chunk: str, chunk_type: str):
-                    nonlocal first_chunk_at
-                    if chunk and first_chunk_at is None:
-                        first_chunk_at = time.perf_counter()
-                        print(
-                            f"⏱️ Session {self.session_id}: final-to-first-chunk "
-                            f"{(first_chunk_at - final_received_at) * 1000:.0f} ms; "
-                            f"Luna request-to-first-chunk "
-                            f"{(first_chunk_at - request_started_at) * 1000:.0f} ms"
-                        )
-                    return await self._send_json("ai_answer_chunk", {"chunk": chunk, "chunk_type": chunk_type})
-
-                answer, result_info = await self.llm_manager.get_ai_answer(transcript, stream_callback)
-                result_info["latency_ms"] = {
-                    "final_to_first_chunk": round((first_chunk_at - final_received_at) * 1000) if first_chunk_at else None,
-                    "request_to_first_chunk": round((first_chunk_at - request_started_at) * 1000) if first_chunk_at else None,
-                    "final_to_complete": round((time.perf_counter() - final_received_at) * 1000),
-                }
-                await self._send_json("ai_answer_complete", {"answer": answer, **result_info})
-                print(f"🤖 AI STREAMING COMPLETE for session {self.session_id}")
-
+            request_id = uuid.uuid4().hex
+            print(f"✅ Processing transcript for session {self.session_id}: {transcript}")
+            await self._send_json("ai_processing_started", {"question": transcript, "request_id": request_id})
+            request_started_at = time.perf_counter()
+            first_chunk_at = None
+            async def stream_callback(chunk: str, chunk_type: str):
+                nonlocal first_chunk_at
+                if chunk and first_chunk_at is None:
+                    first_chunk_at = time.perf_counter()
+                    print(
+                        f"⏱️ Session {self.session_id}: final-to-first-chunk "
+                        f"{(first_chunk_at - final_received_at) * 1000:.0f} ms; "
+                        f"Luna request-to-first-chunk "
+                        f"{(first_chunk_at - request_started_at) * 1000:.0f} ms"
+                    )
+                return await self._send_json("ai_answer_chunk", {"chunk": chunk, "chunk_type": chunk_type, "request_id": request_id})
+            answer, result_info = await self.llm_manager.get_ai_answer(transcript, stream_callback)
+            result_info["latency_ms"] = {
+                "final_to_first_chunk": round((first_chunk_at - final_received_at) * 1000) if first_chunk_at else None,
+                "request_to_first_chunk": round((first_chunk_at - request_started_at) * 1000) if first_chunk_at else None,
+                "final_to_complete": round((time.perf_counter() - final_received_at) * 1000),
+            }
+            await self._send_json("ai_answer_complete", {"answer": answer, "request_id": request_id, **result_info})
+            print(f"🤖 AI STREAMING COMPLETE for session {self.session_id}")
         except Exception as e:
             print(f"❌ CRITICAL: Error processing transcript for session {self.session_id}: {e}")
             await self._send_json("error", {"message": "Error processing transcript."})
@@ -283,16 +282,17 @@ class InterviewSession:
 
         if is_final and should_process:
             self.transcript_buffer = (self.transcript_buffer + " " + transcript).strip()
+            print(f"[latency] session={self.session_id} stage=stt_final speech_final={bool(data.get('speech_final'))} chars={len(transcript)}")
             if self.silence_timer:
                 self.silence_timer.cancel()
                 self.silence_timer = None
             if data.get('speech_final'):
                 self._dispatch_transcript(received_at)
             else:
-                async def fallback_processing():
+                async def dispatch_after_pause():
                     await asyncio.sleep(0.8)
                     self._dispatch_transcript(received_at)
-                self.silence_timer = asyncio.create_task(fallback_processing())
+                self.silence_timer = asyncio.create_task(dispatch_after_pause())
         elif is_final and not should_process:
             if self.llm_manager:
                 self.llm_manager.process_candidate_response(transcript)

@@ -46,6 +46,7 @@ class LiveInterviewUI {
         
         // Initialize real-time markdown parser
         this.markdownParser = new StreamingMarkdownParser();
+        this.activeAIResponses = new Map();
         
         // Enable thinking content filter by default
         this.thinkingFilterEnabled = true;
@@ -1036,6 +1037,19 @@ class LiveInterviewUI {
 
     // Start real-time streaming AI response
     startStreamingAIResponse(metadata = {}) {
+        if (metadata.request_id) {
+            const element = this.createMessageElement('', 'ai-response');
+            this.conversationStream.appendChild(element);
+            const content = element.querySelector('.streaming-text');
+            content.innerHTML = '<span class="streaming-indicator">Thinking...</span>';
+            this.activeAIResponses.set(metadata.request_id, {
+                element, content, parser: new StreamingMarkdownParser(), pending: '', frame: null
+            });
+            this.setScrollMode('ai_streaming', element);
+            this.hideActivity();
+            this.updateEmptyState();
+            return;
+        }
         console.log('🚀 Starting real-time AI streaming with markdown parsing...');
         
         // If there's an existing streaming element, finalize it first
@@ -1068,7 +1082,23 @@ class LiveInterviewUI {
     }
 
     // Append streaming chunk with real-time markdown processing
-    appendStreamingChunk(chunk) {
+    appendStreamingChunk(chunk, requestId) {
+        if (requestId) {
+            const response = this.activeAIResponses.get(requestId);
+            if (!response) return;
+            response.pending += chunk;
+            if (response.frame === null) {
+                response.frame = requestAnimationFrame(() => {
+                    response.frame = null;
+                    if (!this.activeAIResponses.has(requestId)) return;
+                    response.content.querySelector('.streaming-indicator')?.remove();
+                    response.content.innerHTML = response.parser.processChunk(response.pending);
+                    response.pending = '';
+                    if (this.isUserNearBottom()) this.scrollToBottom();
+                });
+            }
+            return;
+        }
         if (!this.currentStreamingElement || !this.currentStreamingContent) {
             console.warn('⚠️ No active streaming element for chunk');
             return;
@@ -1095,6 +1125,19 @@ class LiveInterviewUI {
 
     // Finalize streaming response
     finalizeStreamingResponse(metadata = {}) {
+        if (metadata.request_id) {
+            const response = this.activeAIResponses.get(metadata.request_id);
+            if (!response) return;
+            if (response.frame !== null) cancelAnimationFrame(response.frame);
+            if (response.pending) response.parser.processChunk(response.pending);
+            if (!response.parser.buffer && metadata.answer) response.parser.processChunk(metadata.answer);
+            response.content.innerHTML = response.parser.finalize();
+            response.element.classList.add('complete');
+            this.addResponseMetadata(response.element, metadata);
+            this.activeAIResponses.delete(metadata.request_id);
+            if (this.activeAIResponses.size === 0) this.showActivity('Listening...');
+            return;
+        }
         console.log('✅ Finalizing real-time streaming...');
         
         if (this.currentStreamingElement) {
@@ -1235,6 +1278,10 @@ class LiveInterviewUI {
         this.currentStreamingElement = null;
         this.currentStreamingContent = null;
         this.isStreaming = false;
+        for (const response of this.activeAIResponses.values()) {
+            if (response.frame !== null) cancelAnimationFrame(response.frame);
+        }
+        this.activeAIResponses.clear();
         
         // Reset markdown parser
         this.markdownParser.reset();

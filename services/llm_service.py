@@ -7,6 +7,7 @@ from core.config import settings
 from core.prompts import get_interview_answer_prompt, get_quick_response_prompt
 from services.context_manager import PersistentContextManager
 import threading
+import time
 
 # --- Enhanced LLMManager Class ---
 
@@ -32,7 +33,7 @@ class LLMManager:
         self._request_count = 0
         
         try:
-            self.client = AsyncOpenAI(base_url=base_url, api_key=self.api_key)
+            self.client = AsyncOpenAI(base_url=base_url, api_key=self.api_key, timeout=8.0, max_retries=0)
             print(f"✅ LLMManager initialized for: {self.provider_name} - {self.model_name} ({len(self.api_keys)} keys available)")
         except Exception as e:
             self.client = None
@@ -47,7 +48,7 @@ class LLMManager:
         with self._key_lock:
             self._key_index = (self._key_index + 1) % len(self.api_keys)
             self.api_key = self.api_keys[self._key_index]
-            self.client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
+            self.client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key, timeout=8.0, max_retries=0)
             self._request_count += 1
             print(f"🔑 Key rotation [{self.provider_name}]: using key index {self._key_index}/{len(self.api_keys)}")
 
@@ -95,14 +96,26 @@ class LLMManager:
             }
         
         # Add question to conversation history (once, before retry loop)
-        self.context_manager.add_conversation_exchange(question)
+        exchange = self.context_manager.add_conversation_exchange(question)
         
         # Generate prompt with persistent context
+        preparation_started = time.perf_counter()
         github_evidence = ""
         if self.context_manager.persistent_context.get('interview_type') == 'phd':
             from services.github_research import fetch_project_evidence
-            github_evidence = await fetch_project_evidence(question)
-        prompt = get_interview_answer_prompt(question, self.context_manager, github_evidence)
+            try:
+                github_evidence = await asyncio.wait_for(fetch_project_evidence(question), timeout=5)
+            except TimeoutError:
+                github_evidence = ""
+                print(f"[latency] repository lookup timed out for question_chars={len(question)}")
+        github_finished = time.perf_counter()
+        # Knowledge retrieval and prompt construction can scan large local
+        # sources. Keep the event loop free for the next transcript and stream.
+        prompt = await asyncio.to_thread(
+            get_interview_answer_prompt, question, self.context_manager, github_evidence
+        )
+        prompt_finished = time.perf_counter()
+        print(f"[latency] question_chars={len(question)} github_ms={(github_finished-preparation_started)*1000:.0f} prompt_ms={(prompt_finished-github_finished)*1000:.0f} prompt_chars={len(prompt)}")
         
         print(f"🎯 Processing with {self.provider_name}-{self.model_name}: '{question[:100]}...'")
         
@@ -125,6 +138,12 @@ class LLMManager:
                     "top_p": 0.85,
                     "max_tokens": 8000
                 }
+                if self.provider_name == "OpenAI" and self.model_name == "gpt-6-luna":
+                    api_params.pop("temperature")
+                    api_params.pop("top_p")
+                    api_params.pop("max_tokens")
+                    api_params["max_completion_tokens"] = 8000
+                    api_params["reasoning_effort"] = "low"
 
                 # Add provider-specific routing if available
                 if self.request_params:
@@ -140,6 +159,8 @@ class LLMManager:
                     api_params["stream"] = True
                     full_answer = ""
                     streaming_active = True
+                    request_started = time.perf_counter()
+                    first_token_logged = False
                     try:
                         async for chunk in await self.client.chat.completions.create(**api_params):
                             if not streaming_active:
@@ -147,6 +168,9 @@ class LLMManager:
                             
                             if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                                 content_chunk = chunk.choices[0].delta.content
+                                if not first_token_logged:
+                                    print(f"[latency] question_chars={len(question)} luna_first_chunk_ms={(time.perf_counter()-request_started)*1000:.0f}")
+                                    first_token_logged = True
                                 full_answer += content_chunk
                                 if stream_callback:
                                     try:
@@ -171,7 +195,7 @@ class LLMManager:
                     answer = chat_completion.choices[0].message.content.strip()
                 
                 # Success! Add AI response and return
-                self.context_manager.add_ai_response(answer, "normal")
+                self.context_manager.add_ai_response(answer, "normal", exchange=exchange)
                 self.is_healthy = True
                 self.error_count = 0
                 self.last_success_time = datetime.now()

@@ -5,7 +5,7 @@ from core.env_utils import env_manager
 
 AI_PROVIDERS_FILE = "ai_providers.json"
 AI_PROVIDERS_EXAMPLE_FILE = "ai_providers.example.json"
-DEFAULT_PROVIDERS = ["Groq", "Cerebras", "Gemini", "OpenRouter"]
+DEFAULT_PROVIDERS = ["OpenAI", "Groq", "Cerebras", "Gemini", "OpenRouter"]
 
 
 def get_env_prefix(provider_name: str) -> str:
@@ -44,6 +44,9 @@ def load_providers_config(file_path: str = AI_PROVIDERS_FILE) -> List[Dict[str, 
     env_providers_val = env_manager.get_value("AI_PROVIDERS")
     if env_providers_val:
         provider_names = parse_list_from_env(env_providers_val)
+        # Keep the OpenAI model available even when older .env lists omit it.
+        if "OpenAI" not in provider_names:
+            provider_names.insert(0, "OpenAI")
     else:
         # Check if any provider has BASE_URL or API_KEYS defined in .env
         detected = [

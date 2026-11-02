@@ -76,11 +76,12 @@ async def get_ai_providers():
 @router.get("/api/ai-providers/full")
 async def get_ai_providers_full():
     """
-    Returns the full provider configuration INCLUDING API keys loaded from .env.
-    Used for the advanced configuration UI.
+    Returns editable provider metadata without sending stored API keys to the UI.
     """
     try:
-        return load_providers_config()
+        providers = load_providers_config()
+        return [{**{k: v for k, v in p.items() if k not in ("apiKey", "apiKeys")},
+                 "apiKeys": [], "keyCount": len(p.get("apiKeys") or [])} for p in providers]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading full provider config: {e}")
 
@@ -98,9 +99,9 @@ async def save_ai_providers(request: SaveProvidersRequest):
 
 @router.get("/api/deepgram-key")
 async def get_deepgram_key():
-    """Retrieves the current DEEPGRAM_API_KEY from .env."""
+    """Reports whether a Deepgram key is stored without returning it."""
     key = env_manager.get_value("DEEPGRAM_API_KEY")
-    return {"key": key or ""}
+    return {"configured": bool(key)}
 
 @router.post("/api/save-deepgram-key")
 async def save_deepgram_key(request: SaveKeyRequest):

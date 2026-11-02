@@ -1,2 +1,5 @@
 Set objShell = CreateObject("WScript.Shell")
-objShell.Run "run.bat", 0, False
+Set fileSystem = CreateObject("Scripting.FileSystemObject")
+projectDir = fileSystem.GetParentFolderName(WScript.ScriptFullName)
+objShell.CurrentDirectory = projectDir
+objShell.Run """" & fileSystem.BuildPath(projectDir, "run.bat") & """", 0, False
