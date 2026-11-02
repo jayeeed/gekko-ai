@@ -357,11 +357,18 @@
                 </div>
                 <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
                     <div class="header-controls">
+                        <label class="opacity-control" aria-label="Gekko window opacity">
+                            <span>Opacity</span>
+                            <button type="button" data-opacity="40">40%</button>
+                            <button type="button" data-opacity="70">70%</button>
+                            <button type="button" data-opacity="100">100%</button>
+                        </label>
                         <button id="mute-btn" class="mute-btn" title="Mute microphone input to app (Alt+M)">
                             <span class="mute-icon">🎤</span>
                             <span class="mute-text">Mute</span>
                         </button>
                         <button id="reset-interview-btn" class="reset-btn">Reset</button>
+                        <button id="download-conversation-btn" class="download-log-btn" type="button" title="Download the visible conversation as Markdown">Download .md</button>
                         <button id="end-interview-btn" class="end-btn">End Interview</button>
                     </div>
                     <div id="preset-container"></div>

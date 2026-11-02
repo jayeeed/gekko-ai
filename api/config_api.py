@@ -9,6 +9,7 @@ from services.vision_service import verify_vision_provider_connection
 from core.env_utils import env_manager
 import shutil
 import os
+import sys
 
 from core.provider_service import load_providers_config, save_providers_config
 
@@ -39,8 +40,32 @@ async def get_config():
     return {
         "DEV_MODE": settings.DEV_MODE,
         "LOG_LEVEL": settings.LOG_LEVEL,
-        "CAPTURE_PROTECTION_ENABLED": not settings.DEV_MODE
+        "CAPTURE_PROTECTION_ENABLED": window_manager.window_manager.capture_protection_applied,
+        "CAPTURE_PROTECTION_LIMITED": sys.platform == "darwin"
     }
+
+
+@router.get("/api/audio-diagnostics")
+async def get_audio_diagnostics():
+    """Local level-only counters for debugging capture; never returns audio content."""
+    from api.session_manager import session_manager
+
+    sessions = []
+    for session in session_manager.active_sessions.values():
+        bridge = session.native_audio
+        sessions.append({
+            "connected": session.websocket is not None,
+            "microphone_packets": session.microphone_packets_received,
+            "deepgram_connected": bool(session.stt_manager and session.stt_manager.is_connected),
+            "system_deepgram_connected": bool(session.system_stt_manager and session.system_stt_manager.is_connected),
+            "system_capture_running": bool(bridge and bridge.process and bridge.process.returncode is None),
+            "system_packets": bridge.packets_received if bridge else 0,
+            "system_nonzero_packets": bridge.nonzero_packets_received if bridge else 0,
+            "system_packets_sent": session.system_packets_sent,
+            "system_final_transcripts": session.system_final_transcripts,
+            "microphone_final_transcripts": session.microphone_final_transcripts,
+        })
+    return {"sessions": sessions}
 
 @router.get("/api/ai-providers")
 async def get_ai_providers():

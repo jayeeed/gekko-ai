@@ -135,6 +135,13 @@ export class WebSocketHandler {
             case 'api_key_status':
                 this.handleApiKeyStatus(data.payload);
                 break;
+            case 'system_audio_status':
+                if (data.payload.available) {
+                    console.log('✅ macOS system audio capture ready');
+                } else {
+                    liveInterviewUI.addMessage('System audio is unavailable. Other participants may not be transcribed.', 'system-error', true);
+                }
+                break;
             case 'transcript_update':
                 this.handleTranscriptUpdate(data.payload);
                 break;

@@ -1,12 +1,14 @@
 import uuid
 import asyncio
 import time
+import sys
 from typing import Dict, Optional
 from fastapi import WebSocket
 
 from .utils import send_json
 from services.llm_service import MultiLLMManager
 from services.stt_service import DeepgramManager
+from services.mac_audio_bridge import MacSystemAudioBridge
 from services.vision_service import vision_service
 
 # Session TTL: 30 minutes of inactivity with no WebSocket connected
@@ -22,6 +24,12 @@ class InterviewSession:
         self.websocket: Optional[WebSocket] = None
         self.llm_manager: Optional[MultiLLMManager] = None
         self.stt_manager: Optional[DeepgramManager] = None
+        self.system_stt_manager: Optional[DeepgramManager] = None
+        self.native_audio: Optional[MacSystemAudioBridge] = None
+        self.microphone_packets_received = 0
+        self.system_packets_sent = 0
+        self.system_final_transcripts = 0
+        self.microphone_final_transcripts = 0
         self.is_active: bool = False
         self.state: Dict[str, any] = {
             "is_muted": False,
@@ -70,6 +78,32 @@ class InterviewSession:
             self.state["is_universally_muted"] = payload.get('is_universally_muted', False)
 
             await self.initialize_managers(primary_provider_config, secondary_provider_config, primary_vision_config, secondary_vision_config, onboarding_context)
+
+            if sys.platform == "darwin":
+                if self.native_audio:
+                    await self.native_audio.stop()
+                if self.system_stt_manager:
+                    await self.system_stt_manager.finish()
+                user_languages = onboarding_context.get('selectedLanguages', [])
+                system_stt = DeepgramManager(
+                    lambda data: self.on_transcript({**data, "source": "system"}),
+                    user_languages,
+                )
+                await system_stt.start()
+                self.system_stt_manager = system_stt if system_stt.is_connected else None
+                bridge = MacSystemAudioBridge(
+                    on_failure=lambda: self._send_json("system_audio_status", {"available": False, "source": "macos"}),
+                    on_packet=self._send_system_audio,
+                )
+                if system_stt.is_connected and await bridge.start():
+                    self.native_audio = bridge
+                    print("✅ macOS system audio capture connected")
+                    await self._send_json("system_audio_status", {"available": True, "source": "macos"})
+                else:
+                    await system_stt.finish()
+                    self.system_stt_manager = None
+                    self.native_audio = None
+                    await self._send_json("system_audio_status", {"available": False, "source": "macos"})
             
             current_preset = self.llm_manager.get_current_preset_info()
             health_results = await self.llm_manager.perform_health_checks()
@@ -91,7 +125,14 @@ class InterviewSession:
             self.state["is_muted"] = payload.get('is_muted', False)
             self.state["speaker_hint"] = payload.get('speaker_hint', 'unknown')
             if audio_data:
+                self.microphone_packets_received += 1
                 await self.stt_manager.send_audio(audio_data)
+
+    async def _send_system_audio(self, packet: bytes):
+        if self.system_stt_manager and not self.state.get("is_universally_muted", False):
+            if self.system_stt_manager.is_connected:
+                await self.system_stt_manager.send_audio(packet, source="system")
+                self.system_packets_sent += 1
 
     async def handle_config_update(self, payload: dict):
         """Handles configuration updates from the client."""
@@ -271,6 +312,11 @@ class InterviewSession:
             return
 
         self._touch()
+        if data.get("is_final"):
+            if data.get("source") == "system":
+                self.system_final_transcripts += 1
+            else:
+                self.microphone_final_transcripts += 1
         received_at = time.perf_counter()
         await self._send_json("transcript_update", data)
 
@@ -299,6 +345,12 @@ class InterviewSession:
 
     async def cleanup(self):
         """Cleans up resources for the session."""
+        if self.native_audio:
+            await self.native_audio.stop()
+            self.native_audio = None
+        if self.system_stt_manager:
+            await self.system_stt_manager.finish()
+            self.system_stt_manager = None
         if self.stt_manager:
             await self.stt_manager.finish()
         if self.silence_timer and not self.silence_timer.done():

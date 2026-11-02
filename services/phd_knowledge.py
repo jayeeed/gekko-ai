@@ -9,6 +9,7 @@ import re
 import sqlite3
 import threading
 import uuid
+from difflib import SequenceMatcher
 
 from dotenv import dotenv_values
 
@@ -37,6 +38,32 @@ def clean_text(text):
 
 def terms(text):
     return {word for word in re.findall(r'[a-z][a-z0-9+#.-]{2,}', text.lower()) if word not in STOPWORDS and len(word) < 40}
+
+
+def markdown_chunks(content, max_chars=6000):
+    """Keep short Markdown sections, including all their paragraphs, together."""
+    sections = re.split(r'(?m)(?=^#{1,3}\s+)', content)
+    for section in sections:
+        if not section.strip():
+            continue
+        if len(section) <= max_chars:
+            yield section.strip()
+            continue
+        current = ''
+        for paragraph in re.split(r'\n\s*\n', section):
+            paragraph = paragraph.strip()
+            if not paragraph:
+                continue
+            if current and len(current) + len(paragraph) + 2 > max_chars:
+                yield current
+                current = ''
+            if len(paragraph) > max_chars:
+                for offset in range(0, len(paragraph), max_chars):
+                    yield paragraph[offset:offset + max_chars]
+            else:
+                current = f'{current}\n\n{paragraph}' if current else paragraph
+        if current:
+            yield current
 
 
 def extract_file(filename, data):
@@ -91,6 +118,75 @@ class KnowledgeBank:
         with self.lock, self._connect() as db:
             row = db.execute('SELECT * FROM sources WHERE id=?', (source_id,)).fetchone()
             return dict(row) if row else None
+
+    def match_prepared_answer(self, question):
+        """Find a clear question match in common_questions.md, without guessing from vague terms."""
+        with self.lock, self._connect() as db:
+            row = db.execute(
+                "SELECT content FROM sources WHERE title=? ORDER BY created_at DESC LIMIT 1",
+                ('common_questions.md',),
+            ).fetchone()
+        if not row:
+            return self.match_cv_answer(question)
+
+        def words(value):
+            value = re.sub(r'(?i)mimic[\s-]*iv', 'mimiciv', value)
+            value = re.sub(r'(?i)de[\s-]*synpuf', 'desynpuf', value)
+            return {word for word in re.findall(r'[a-z0-9]+', value.lower())
+                    if len(word) >= 3 and (word not in STOPWORDS or word == 'experience')}
+
+        candidates = []
+        for match in re.finditer(r'(?ms)^##\s+\d+\.\s+(.+?)\n\n(.*?)(?=^##\s+\d+\.|\Z)', row['content']):
+            heading, answer = match.group(1).strip(), match.group(2).strip()
+            query_words, heading_words = words(question), words(heading)
+            shared = query_words & heading_words
+            normalized_query = ' '.join(re.findall(r'[a-z0-9]+', question.lower()))
+            normalized_heading = ' '.join(re.findall(r'[a-z0-9]+', heading.lower()))
+            similarity = SequenceMatcher(None, normalized_query, normalized_heading).ratio()
+            overlap = len(shared) / max(1, len(query_words | heading_words))
+            score = max(similarity, overlap)
+            candidates.append((score, len(shared), heading, answer))
+        candidates.sort(reverse=True)
+        if not candidates:
+            return self.match_cv_answer(question)
+        score, shared_count, heading, answer = candidates[0]
+        next_score = candidates[1][0] if len(candidates) > 1 else 0
+        distinctive = {'mimiciv', 'desynpuf', 'canceromicslake'}
+        one_word_match = bool(words(question) & distinctive & words(heading))
+        paired_terms = ({'omop', 'fhir'}, {'wayne', 'state'}, {'ehr', 'experience'})
+        pair_match = any(pair <= words(question) and pair <= words(heading) for pair in paired_terms)
+        exact_heading = ' '.join(re.findall(r'[a-z0-9]+', question.lower())) == ' '.join(re.findall(r'[a-z0-9]+', heading.lower()))
+        if exact_heading or (score >= 0.62 and shared_count >= 2 and score - next_score >= 0.08) or one_word_match or pair_match:
+            return {'question': heading, 'answer': answer, 'source': 'common_questions.md'}
+        return self.match_cv_answer(question)
+
+    def match_cv_answer(self, question):
+        """Match explicit Question/Answer entries in the CV preparation source."""
+        with self.lock, self._connect() as db:
+            row = db.execute("SELECT content FROM sources WHERE title=? ORDER BY created_at DESC LIMIT 1",
+                             ('Pronab_Roy_PhD_CV.md',)).fetchone()
+        if not row:
+            return None
+        candidates = []
+        for section in re.split(r'(?m)(?=^## CV-Q\d+)', row['content']):
+            prompt = re.search(r'(?m)^\*\*Question:\*\*\s*(.+)$', section)
+            answer = re.search(r'(?ms)^\*\*Answer:\*\*\s*\n\s*\n(.*?)(?=^\*\*(?:Likely follow-up|Follow-up|Status|Evidence|Required response|Question):|^---\s*$|\Z)', section)
+            if not prompt or not answer:
+                continue
+            heading = prompt.group(1).strip()
+            qwords, hwords = terms(question), terms(heading)
+            shared = len(qwords & hwords)
+            score = SequenceMatcher(None, question.lower().strip(' ?.').replace('-', ' '),
+                                    heading.lower().strip(' ?.').replace('-', ' ')).ratio()
+            candidates.append((score, shared, heading, answer.group(1).strip()))
+        candidates.sort(reverse=True)
+        if not candidates:
+            return None
+        score, shared, heading, answer = candidates[0]
+        runner_up = candidates[1][0] if len(candidates) > 1 else 0
+        if score >= 0.76 and shared >= 2 and score - runner_up >= 0.06:
+            return {'question': heading, 'answer': answer, 'source': 'Pronab_Roy_PhD_CV.md'}
+        return None
 
     def add(self, title, category, kind, content, origin=''):
         title = clean_text(title).replace('\n', ' ')[:200]
@@ -164,9 +260,8 @@ class KnowledgeBank:
         chunks = []
         for source in sources:
             content = source['content']
-            # Bounded chunks keep retrieval useful even for long CVs and papers.
-            for offset in range(0, len(content), 900):
-                excerpt = content[offset:offset + 900]
+            # Keep short question-and-answer sections intact across paragraphs.
+            for excerpt in markdown_chunks(content):
                 chunks.append((source, excerpt, terms(source['title'] + ' ' + excerpt)))
         query = terms(question)
         frequencies = Counter(term for _, _, words in chunks for term in words)

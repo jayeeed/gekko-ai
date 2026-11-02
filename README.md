@@ -1,10 +1,10 @@
-# 👻 Aura — The AI They Can't See, Can't Detect, Can't Stop
+# 👻 Aura — Real-Time AI Overlay
 
 <div align="center">
   <img src="logo.png" alt="Aura Logo" width="300" />
 </div>
 
-**An invisible AI overlay that lives on your screen — answers questions, solves problems, analyzes screenshots, and feeds you real-time intelligence. Works during interviews, exams, meetings, or anything on your screen. Invisible to screen recordings. Undetectable by proctoring software. You see everything. They see nothing.**
+**An AI overlay that lives on your screen — answers questions, solves problems, analyzes screenshots, and feeds you real-time assistance. Capture exclusion depends on your operating system and recording app.**
 
 [![AI Powered](https://img.shields.io/badge/AI-Vision%20%7C%20Voice%20%7C%20Multi--Provider-purple.svg)](https://github.com)
 [![Stealth Mode](https://img.shields.io/badge/Stealth-Screen%20Capture%20Protected-green.svg)](https://github.com)
@@ -12,7 +12,7 @@
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?style=flat&logo=windows&logoColor=white)](#-system-requirements)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 
-> **👻 Invisible by Design** — Screen capture protected. Hidden from taskbar. Undetectable by Zoom, Teams, Google Meet, and every proctoring tool on the market.
+> **👻 Screen capture controls** — Windows uses display affinity; macOS applies a legacy window sharing exclusion. Capture behavior depends on the operating system and recording app. See [platform support](#-system-requirements).
 
 > **💸 $0. Forever.** — No subscriptions. No credits. No paywalls. Bring your own free API keys and **own** it.
 
@@ -28,7 +28,7 @@ Imagine having a world-class expert whispering in your ear, helping you deconstr
 
 ### How It Works
 
-Aura sits on top of your screen as an **invisible overlay** during live interviews and exams. It **listens** to conversations in real-time via Deepgram speech-to-text, **generates** intelligent coaching responses using blazing-fast LLMs (Groq, Cerebras, Gemini), and lets you **screenshot** any problem for instant Vision AI solutions—all while staying **completely hidden** from screen recordings, proctoring software, and human observers.
+Aura sits on top of your screen during live interviews and exams. It **listens** to conversations in real-time via Deepgram speech-to-text, **generates** AI responses, and lets you **screenshot** problems for Vision AI analysis. See [platform support](#-system-requirements) for capture exclusion limits.
 
 ---
 
@@ -115,7 +115,7 @@ The final onboarding tab is your **cheat sheet**. Three highlighted pro-tip card
 
 ### 👻 Stealth Mode in Action
 
-See how Aura overlays **directly on top of LeetCode** during a live coding session — invisible to screen recordings, fully transparent, and controlled entirely via hotkeys.
+These screenshots demonstrate the Windows overlay and its display-affinity setting. macOS capture exclusion has the narrower verification described under [System Requirements](#-system-requirements).
 
 <table>
 <tr>
@@ -134,7 +134,7 @@ See how Aura overlays **directly on top of LeetCode** during a live coding sessi
   <img src="Media/transparency-9 - max trasnparency.png" alt="Aura Stealth — Maximum Transparency Overlay" width="370" />
 </div>
 
-**Maximum Transparency Mode** — With `Alt+1` (40% opacity), Aura becomes a near-invisible ghost overlay. The Live Interview Session indicator, MUTED/RESET controls, and AI model badges (`Primary: Cerebras`) are barely visible — just enough for you, completely invisible to anyone observing your screen. The LeetCode problem beneath is fully readable.
+**Maximum Transparency Mode** — With `Alt+1` (40% opacity), Aura becomes a faint overlay. Transparency changes how the window looks locally; capture exclusion depends on the platform and capture app.
 
 </td>
 </tr>
@@ -176,7 +176,7 @@ Clock's ticking. Stakes are high. Aura's got you covered—whether it's an inter
 - **Without Aura**: Stammering, scrambling, stuck.
 - **With Aura (Stealth Mode active)**:
   - Real-time transcription catches every word, discreetly.
-  - **STAR-method gold** pops up on your screen, invisible to others—customized to your resume and role.
+  - **STAR-method gold** appears in the overlay, customized to your resume and role.
   - You drop a story so smooth, they're taking notes.
 
 *Boom: You're unforgettable.*
@@ -188,15 +188,15 @@ Clock's ticking. Stakes are high. Aura's got you covered—whether it's an inter
 **The Brainteaser**: *"Calculate the probability of 7 consecutive heads in all three coins tossed at same time in 100 coin tosses."*
 
 - **With Aura (Stealth Mode is your superpower here)**:
-  1. `Alt+Shift+S` → **Proctoring Stealth Mode** activates. Aura becomes a transparent, click-through overlay, invisible to screen recording and proctoring software.
+  1. On Windows, `Alt+Shift+S` activates the transparent, click-through overlay. Its capture exclusion is subject to the platform limits below.
   2. `Alt+V` → Vision Mode activates, ready to analyze.
   3. `Alt+S` → Silently screenshots the problem from the exam platform.
   4. `Alt+P` → Quantitative AI analyzes the problem in the background.
-  5. Solutions appear ghosted on your screen—only you can see them.
-  6. Submit answers confidently without ever switching tabs or alerting proctoring systems.
+  5. Solutions appear in the overlay.
+  6. Review the answers before using them.
   7. Control Aura's window movements and scroll through suggestions using global hotkeys, all while the exam window remains active and focused.
 
-*You solve complex problems with ease, leaving no trace.*
+*Review generated solutions before using them.*
 
 ---
 
@@ -212,7 +212,7 @@ Clock's ticking. Stakes are high. Aura's got you covered—whether it's an inter
      - **Killer solutions** in JS, Python, Java, SQL, and more.
      - **Time complexity breakdowns** for optimal answers.
      - **Pro-level explanations** to articulate your thought process.
-     - All assistance is delivered via Aura's overlay, invisible to screen sharing.
+     - Assistance appears in Aura's overlay; capture visibility depends on the capture app.
 
 *You code like a rockstar, navigating complex challenges with AI-powered insights, leaving them stunned.*
 
@@ -242,20 +242,20 @@ Aura doesn't just compete—it **crushes** subscription traps like **Interview C
 |---|---|---|---|---|
 | **Cost** | 🆓 Free Forever | 💸 $25/month | 💸 Credits | 💸 Subscription |
 | **Vision AI** | ✅ Screenshots + Diagrams + Code | ❌ Nope | ❌ Nada | ❌ Never |
-| **Stealth** | ✅ **Undetectable** (Screen Capture Proof, Focus-Free, Taskbar Invisible, Ghost Mode) | ✅ Half-Baked | ✅ Kinda | ❌ Exposed |
+| **Stealth** | Screen capture exclusion varies by platform and capture app; see [System Requirements](#-system-requirements) | ✅ Half-Baked | ✅ Kinda | ❌ Exposed |
 | **AI Muscle** | ✅ Multi-Provider Dual Engines + Key Rotation | ❌ One-Trick | ❌ Weak | ❌ Lame |
 | **Scope** | ✅ Coding, System Design, Aptitude, Quantitative, Behavioral | ✅ Coding Only | ✅ Barely | ✅ Meh |
 | **Speed** | ⚡ **Fastest on Earth** — Cerebras (~2,000 tok/s) + Groq (~400 tok/s) = sub-second full answers | ❌ Slow (GPT latency) | ❌ Sluggish | ❌ Laggy |
 
-**Aura's Knockout Punch**: Fastest inference in the game (Cerebras + Groq), totally invisible (screen-capture-proof stealth), and **$0 forever**. Competitors charge $25/month for slower, weaker, detectable tools. Aura buries them all.
+Aura combines multiple AI providers, screenshot analysis, and an overlay. Screen capture exclusion depends on the platform and capture app.
 
 ---
 
 ## 🎯 Core Capabilities at a Glance
 
-### 👻 **Stealth Mode: The Undetectable Edge**
+### 👻 **Stealth Mode**
 
-Aura's Stealth Mode is engineered to provide powerful AI assistance while remaining **completely invisible and undetectable** to proctoring software, screen recording tools, and human observers. This is crucial for high-stakes online exams, remote interviews, and any situation requiring discreet support.
+Aura's overlay offers transparency and capture exclusion controls. No setting guarantees invisibility to all recording, sharing, or monitoring software. On macOS, the exclusion uses a legacy AppKit window property and is verified only for the native capture paths listed below.
 
 **What it is:** Stealth Mode transforms Aura into a transparent, click-through overlay that seamlessly integrates with your workflow. It operates without creating new windows that could trigger alerts, and all interactions are managed via global hotkeys—meaning you **never need to switch focus** from your primary application.
 
@@ -263,7 +263,7 @@ Aura's Stealth Mode is engineered to provide powerful AI assistance while remain
 
 | Component | What It Does |
 |-----------|-------------|
-| 🛡️ **Screen Capture Protection** | Invisible to screen recording, browser screen-share, Zoom, Teams, Google Meet, and GoToMeeting — uses low-level `WDA_EXCLUDEFROMCAPTURE` API |
+| 🛡️ **Screen Capture Protection** | Windows uses `WDA_EXCLUDEFROMCAPTURE`; macOS uses `NSWindowSharingNone` with the limits below. |
 | 🤫 **Silent Operation** | Zero system sounds, zero focus stealing — type in your exam while Aura overlays information |
 | 🔒 **Taskbar & Alt+Tab Immunity** | Hidden from taskbar, Alt+Tab switcher, and application monitoring via `WS_EX_TOOLWINDOW` |
 | 👻 **Ghost Mode** (`Alt+X`) | Click-through UI — interact with apps *underneath* Aura while seeing its content |
@@ -327,7 +327,7 @@ This diagram illustrates Aura's multi-layered architecture—designed for real-t
 
 </div>
 
-*The "Stealth & Privacy" layer in the OS Interaction component is key to Aura's undetectable nature.*
+*The "Stealth & Privacy" layer in the OS Interaction component controls the overlay and platform capture settings; it does not guarantee invisibility.*
 
 ### Key Components
 
@@ -389,11 +389,15 @@ Never leave the interview window. Control everything instantly with our ergonomi
 
 | Requirement | Details |
 |------------|---------|
-| **Operating System** | **Windows 10 or 11** (required — stealth features use Win32 APIs) |
+| **Operating System** | Windows 10/11 or macOS. Windows-only features include global hotkeys, click-through mode, and taskbar hiding. |
 | **Python** | 3.8 or newer ([download here](https://www.python.org/downloads/)) — check **"Add Python to PATH"** during install |
 | **Microphone** | Any mic — built-in laptop mic, headset, or USB mic all work |
 | **Internet** | Required for API calls to Deepgram (STT) and LLM providers |
 | **API Keys** | Deepgram + at least one LLM provider (all free — see below) |
+
+On macOS 27.0.1, the window sharing exclusion was verified against `screencapture` (full display and window) and ScreenCaptureKit (screenshot and recording frame) using protected and unprotected control windows. Apple [labels `NSWindowSharingNone` a legacy setting](https://developer.apple.com/documentation/appkit/nswindow/sharingtype-swift.enum/none?language=objc) and does not guarantee capture exclusion in other apps or future macOS versions. Test the specific recording or sharing app before relying on it.
+
+After a macOS update, run `swift tests/mac_capture_probe.swift` from the project root to repeat those checks. The Terminal running the probe needs Screen Recording permission.
 
 ---
 
@@ -490,6 +494,8 @@ Every provider Aura supports offers **free tiers** that are more than enough for
 ### 🎤 Deepgram (Required — Speech-to-Text Engine)
 
 Deepgram is the **core engine** that powers Aura's real-time transcription. It listens to your microphone and the interviewer's audio, converting speech to text that gets fed to the AI for instant coaching responses. **Without Deepgram, Aura can't hear the interview.**
+
+On macOS, Gekko uses ScreenCaptureKit to capture audio playing through the Mac and sends it through a separate live transcription stream from the selected microphone. This is intended to include browser meeting audio from Safari. Allow the macOS Screen & System Audio Recording permission when prompted. The macOS capture helper requires the Swift command-line tools. Gekko shows a warning in the live view if native system audio capture cannot start. The microphone mute control affects only the mic; universal mute pauses both sources. Meeting audio must actually be playing through this Mac's output device for the system capture to hear it.
 
 | | Details |
 |---|---------|
@@ -649,7 +655,7 @@ Created from `ai_providers.example.json`. **Not committed to git** — your keys
 ### **For Exam Takers (Where Stealth Mode is Essential)**
 
 - **Quantitative Analysts** — Master complex math with on-screen, invisible formula assistance
-- **Professional Certifications** — Navigate difficult cert exams with key information and strategies, undetectable
+- **Professional Certifications** — Review practice material and explanations during preparation
 - **Aptitude Tests** — Crush pre-employment assessments by leveraging Vision AI to analyze diverse question types
 
 **Free. Fast. Flawless. And Fully Stealthy.**

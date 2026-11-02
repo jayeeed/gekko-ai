@@ -1,8 +1,7 @@
 # --- window_manager.py ---
 # This module contains the core logic for managing the application's desktop window.
-# Its primary responsibility is to apply the necessary settings to prevent the window
-# from being captured by screen recording or sharing software (e.g., Teams, Zoom, OBS).
-# This is the "stealth" feature of the Gekko application.
+# It applies platform capture-exclusion settings to the app window. On macOS,
+# the legacy NSWindow sharing setting is not guaranteed across capture apps.
 
 import os
 import ctypes
@@ -11,7 +10,7 @@ import webview
 import time
 import platform
 from typing import Optional
-from threading import Thread
+from threading import Event, Thread
 from pynput import keyboard
 
 # --- Scroll Configuration ---
@@ -151,6 +150,9 @@ class WindowManager:
     def __init__(self):
         self.hwnd: Optional[int] = None
         self.is_windows = platform.system() == "Windows"
+        self.is_macos = platform.system() == "Darwin"
+        self.webview_window = None
+        self.capture_protection_applied = False
         self.current_transparency = 1.0
         self.is_ghost_mode = False
         self.screen_share_monitor_active = False
@@ -244,6 +246,39 @@ class WindowManager:
         self.hwnd = window_handle
         if self.is_windows and self.hwnd:
             self._enable_transparency()
+
+    def set_webview_window(self, window):
+        """Keep the pywebview window so macOS controls can reach its NSWindow."""
+        self.webview_window = window
+
+    def _run_on_macos_main_thread(self, action) -> bool:
+        """Run an AppKit window change on the UI thread and report its result."""
+        from Foundation import NSThread
+        from PyObjCTools import AppHelper
+
+        if NSThread.isMainThread():
+            action()
+            return True
+
+        finished = Event()
+        error = []
+
+        def run():
+            try:
+                action()
+            except Exception as exc:
+                error.append(exc)
+            finally:
+                finished.set()
+
+        AppHelper.callAfter(run)
+        if not finished.wait(5):
+            print("❌ Timed out waiting for the macOS window")
+            return False
+        if error:
+            print(f"❌ macOS window update failed: {error[0]}")
+            return False
+        return True
         
     def _enable_transparency(self):
         """Enable transparency capability for the window"""
@@ -272,6 +307,23 @@ class WindowManager:
         Returns:
             bool: True if successful, False otherwise
         """
+        if self.is_macos:
+            native_window = getattr(self.webview_window, "native", None)
+            if native_window is None:
+                print("❌ macOS window is not ready for transparency changes")
+                return False
+            transparency = max(0.0, min(1.0, transparency))
+
+            def apply_alpha():
+                native_window.setAlphaValue_(transparency)
+                if abs(native_window.alphaValue() - transparency) > 0.01:
+                    raise RuntimeError("macOS did not apply the requested opacity")
+
+            if self._run_on_macos_main_thread(apply_alpha):
+                self.current_transparency = transparency
+                return True
+            return False
+
         if not self.is_windows or not self.hwnd:
             print("Transparency not supported on this platform or no window handle")
             return False
@@ -635,7 +687,7 @@ class WindowManager:
             "transparency": self.current_transparency,
             "transparency_percent": int(self.current_transparency * 100),
             "is_transparent": self.current_transparency < 1.0,
-            "platform_supported": self.is_windows,
+            "platform_supported": self.is_windows or self.is_macos,
             "window_handle": self.hwnd,
             "screen_share_monitor_active": self.screen_share_monitor_active,
             "hidden_screen_share_windows": len(self.hidden_screen_share_windows)
@@ -1262,19 +1314,35 @@ def test_screen_share_detection():
 
 def apply_capture_protection(window):
     """
-    Applies display affinity to exclude the window from screen capture.
-
-    This function is the heart of the "stealth" feature. It first tries to get
-    the window handle directly from a private pywebview attribute and, if that fails,
-    falls back to searching for the window by its title.
+    Apply macOS window sharing exclusion or Windows display affinity.
 
     Args:
         window: The pywebview window object.
     """
+    window_manager.capture_protection_applied = False
     hwnd = None
+    if platform.system() == "Darwin":
+        native_window = getattr(window, "native", None)
+        if native_window is None:
+            print("❌ macOS window is not ready for capture protection")
+            return False
+
+        from AppKit import NSWindowSharingNone
+
+        def apply_sharing_type():
+            native_window.setSharingType_(NSWindowSharingNone)
+            if native_window.sharingType() != NSWindowSharingNone:
+                raise RuntimeError("macOS did not apply the window sharing setting")
+
+        success = window_manager._run_on_macos_main_thread(apply_sharing_type)
+        window_manager.capture_protection_applied = success
+        if success:
+            print("🛡️ macOS window sharing exclusion applied (legacy API)")
+        return success
+
     if platform.system() != "Windows":
-        print("ℹ️ Screen capture protection is only supported on Windows. Skipping...")
-        return True
+        print("ℹ️ Screen capture protection is unsupported on this platform")
+        return False
 
     print("🛡️ APPLYING SCREEN CAPTURE PROTECTION...")
 
@@ -1314,6 +1382,7 @@ def apply_capture_protection(window):
     success = _user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
 
     if success:
+        window_manager.capture_protection_applied = True
         print(f"✅ SUCCESS: Window {hex(hwnd)} is now HIDDEN from screen capture!")
         print("   🎯 Window will appear as BLACK RECTANGLE in recordings/screen sharing")
         

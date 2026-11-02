@@ -59,6 +59,7 @@ class LiveInterviewUI {
         this.activityIndicator = document.getElementById('activity-indicator');
         this.endButton = document.getElementById('end-interview-btn');
         this.resetButton = document.getElementById('reset-interview-btn');
+        this.downloadConversationButton = document.getElementById('download-conversation-btn');
         this.muteButton = document.getElementById('mute-btn');
         
         // Listen to the mute manager for state changes
@@ -77,10 +78,26 @@ class LiveInterviewUI {
         if (this.resetButton) {
             this.resetButton.addEventListener('click', () => this.resetInterview());
         }
+
+        if (this.downloadConversationButton) {
+            this.downloadConversationButton.addEventListener('click', () => this.downloadConversationMarkdown());
+        }
         
         if (this.muteButton) {
             this.muteButton.addEventListener('click', () => this.toggleMute());
         }
+
+        document.querySelectorAll('[data-opacity]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const percent = Number(button.dataset.opacity);
+                const success = await this.setWindowTransparencyPercent(percent);
+                if (success) {
+                    document.querySelectorAll('[data-opacity]').forEach((item) => {
+                        item.setAttribute('aria-pressed', String(item === button));
+                    });
+                }
+            });
+        });
         
         // Setup smart scroll detection
         this.setupSmartScroll();
@@ -482,6 +499,35 @@ class LiveInterviewUI {
     }
 
     // Add message to conversation
+    downloadConversationMarkdown() {
+        const messages = [...this.conversationStream.querySelectorAll('.message')]
+            .map((element) => {
+                const speaker = element.querySelector('.label')?.textContent?.trim() || 'Conversation';
+                const body = element.querySelector('.streaming-text')?.innerText?.trim() || '';
+                return body ? `## ${speaker}\n\n${body}` : '';
+            })
+            .filter(Boolean);
+
+        if (!messages.length) {
+            this.showActivity('No conversation text is available to download yet.');
+            return false;
+        }
+
+        const exportedAt = new Date();
+        const date = exportedAt.toLocaleString();
+        const markdown = `# Gekko Conversation Log\n\nExported: ${date}\n\n${messages.join('\n\n---\n\n')}\n`;
+        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `gekko-conversation-${exportedAt.toISOString().slice(0, 10)}.md`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return true;
+    }
+
     addMessage(content, type) {
         // Filter thinking content from all messages
         const filteredContent = this.filterThinkingContent(content);

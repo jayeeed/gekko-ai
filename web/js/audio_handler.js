@@ -66,30 +66,35 @@ export async function startAudioProcessing(micId, onAudioData) {
         let systemAudioAcquired = false;
         let screenVideoAcquired = false;
 
+        const useNativeSystemAudio = navigator.platform.toUpperCase().includes('MAC');
         try {
-            // Tier 1: Try for both video and audio
             devLog("📡 Attempting to capture screen video and system audio...");
             systemStream = await navigator.mediaDevices.getDisplayMedia({ 
                 video: { cursor: "always" }, 
-                audio: true 
+                audio: !useNativeSystemAudio
             });
-            systemAudioAcquired = true;
-            screenVideoAcquired = true;
-            devLog("✅ Full screen and system audio capture acquired");
+            systemAudioAcquired = systemStream.getAudioTracks().length > 0;
+            screenVideoAcquired = systemStream.getVideoTracks().length > 0;
+            if (systemAudioAcquired) {
+                devLog("✅ Full screen and system audio capture acquired");
+            } else {
+                devWarn("⚠️ Display capture returned no system audio track");
+            }
         } catch (err) {
-            devWarn("⚠️ Could not capture system audio. Falling back to video-only...", err);
-            
-            try {
-                // Tier 2: Try for video only
-                systemStream = await navigator.mediaDevices.getDisplayMedia({ 
-                    video: { cursor: "always" }, 
-                    audio: false 
-                });
-                screenVideoAcquired = true;
-                devLog("✅ Screen video capture acquired (no system audio)");
-            } catch (err2) {
-                devError("❌ Screen capture completely denied:", err2);
-                // Tier 3: Continue with just microphone (Vision AI will be disabled)
+            if (useNativeSystemAudio) {
+                devWarn("⚠️ Screen video capture unavailable; native system audio can still run", err);
+            } else {
+                devWarn("⚠️ Could not capture system audio. Falling back to video-only...", err);
+                try {
+                    systemStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { cursor: "always" },
+                        audio: false
+                    });
+                    screenVideoAcquired = systemStream.getVideoTracks().length > 0;
+                    devLog("✅ Screen video capture acquired (no system audio)");
+                } catch (err2) {
+                    devError("❌ Screen capture completely denied:", err2);
+                }
             }
         }
 
@@ -113,6 +118,11 @@ export async function startAudioProcessing(micId, onAudioData) {
             numberOfOutputs: 1,
             outputChannelCount: [1]
         });
+        // Keep the worklet in the active audio graph without playing captured audio.
+        const silentOutput = audioContext.createGain();
+        silentOutput.gain.value = 0;
+        mixedProcessor.connect(silentOutput);
+        silentOutput.connect(audioContext.destination);
 
         // Handle mixed audio with mute-aware speaker detection
         let audioProcessingCounter = 0; // For throttled logging
@@ -168,7 +178,12 @@ export async function startAudioProcessing(micId, onAudioData) {
                 systemAudioAcquired = false;
             }
 
-            // Store the video track for screenshot reuse, but remove it from the stream
+        } else if (!useNativeSystemAudio) {
+            devWarn("ℹ️ No system audio track available; remote participants will not be transcribed.");
+        }
+
+        // Keep video available for screenshots even when display audio is absent.
+        if (systemStream) {
             const videoTracks = systemStream.getVideoTracks();
             if (videoTracks.length > 0) {
                 screenVideoTrack = videoTracks[0];
@@ -178,8 +193,6 @@ export async function startAudioProcessing(micId, onAudioData) {
                 devWarn("⚠️ No video track found in display media stream");
                 screenVideoAcquired = false;
             }
-        } else {
-            devWarn("ℹ️ No system stream available - Interviewer detection and Vision AI will be disabled.");
         }
 
         devLog("✅ Audio processing started");

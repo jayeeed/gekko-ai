@@ -171,14 +171,12 @@ async function startInterview() {
         let warningMsg = "⚠️ Gekko AI started with limited functionality:\n";
         
         if (!result.systemAudio) {
-            warningMsg += "\n• System Audio: DISABLED (Interviewer won't be heard)";
+            warningMsg += isMac
+                ? "\n• System Audio: native macOS capture will be checked when the interview starts"
+                : "\n• System Audio: DISABLED (Interviewer won't be heard)";
         }
         if (!result.screenVideo) {
             warningMsg += "\n• Screen Capture: DISABLED (Vision AI / Screenshots won't work)";
-        }
-
-        if (isMac) {
-            warningMsg += "\n\nWorkaround for Mac: To capture system audio, use a virtual driver like 'BlackHole' and select it as your microphone.";
         }
 
         console.warn(warningMsg);

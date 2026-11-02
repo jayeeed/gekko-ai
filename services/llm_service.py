@@ -97,6 +97,11 @@ class LLMManager:
         
         # Add question to conversation history (once, before retry loop)
         exchange = self.context_manager.add_conversation_exchange(question)
+        prepared = None
+
+        if self.context_manager.persistent_context.get('interview_type') == 'phd':
+            from services.phd_knowledge import knowledge_bank
+            prepared = await asyncio.to_thread(knowledge_bank.match_prepared_answer, question)
         
         # Generate prompt with persistent context
         preparation_started = time.perf_counter()
@@ -114,6 +119,15 @@ class LLMManager:
         prompt = await asyncio.to_thread(
             get_interview_answer_prompt, question, self.context_manager, github_evidence
         )
+        if prepared:
+            prompt += f"""
+
+IMPORTANT PREPARED ANSWER TASK:
+The supplied knowledge bank has a prepared answer that matches this question. Preserve its full wording and all paragraphs exactly in a section titled `## Deeper explanation`. Then add 1-3 short, plain-language sentences under `### Luna adds` that clarify or connect the idea. Do not repeat the prepared answer, remove caveats, or add unsupported personal facts. Keep `## Short answer` concise.
+<prepared_answer source="{prepared['source']}">
+{prepared['answer'].replace('**Suggested answer:** ', '')}
+</prepared_answer>
+"""
         prompt_finished = time.perf_counter()
         print(f"[latency] question_chars={len(question)} github_ms={(github_finished-preparation_started)*1000:.0f} prompt_ms={(prompt_finished-github_finished)*1000:.0f} prompt_chars={len(prompt)}")
         
@@ -172,7 +186,7 @@ class LLMManager:
                                     print(f"[latency] question_chars={len(question)} luna_first_chunk_ms={(time.perf_counter()-request_started)*1000:.0f}")
                                     first_token_logged = True
                                 full_answer += content_chunk
-                                if stream_callback:
+                                if stream_callback and not prepared:
                                     try:
                                         callback_result = await stream_callback(content_chunk, "chunk")
                                         if callback_result is False:
@@ -194,6 +208,28 @@ class LLMManager:
                     )
                     answer = chat_completion.choices[0].message.content.strip()
                 
+                if prepared:
+                    contribution = answer.strip()
+                    if "### Luna adds" in contribution:
+                        contribution = contribution.split("### Luna adds", 1)[1].strip()
+                    elif "## Deeper explanation" in contribution:
+                        contribution = contribution.split("## Deeper explanation", 1)[1].strip()
+                        saved_text = prepared['answer'].replace('**Suggested answer:** ', '').strip()
+                        if contribution.startswith(saved_text):
+                            contribution = contribution[len(saved_text):].strip()
+                    contribution = contribution.removeprefix("## Short answer").strip()
+                    # The saved answer remains verbatim; Luna's model output is
+                    # kept as an additional section so it cannot overwrite it.
+                    deeper = prepared['answer'].replace('**Suggested answer:** ', '')
+                    short_answer = deeper.split('. ', 1)[0].strip()
+                    if short_answer and not short_answer.endswith(('.', '!', '?')):
+                        short_answer += '.'
+                    answer = f"## Short answer\n{short_answer}\n\n## Deeper explanation\n{deeper}"
+                    if contribution:
+                        answer += f"\n\n### Luna adds\n{contribution}"
+                    if stream_callback:
+                        await stream_callback(answer, "chunk")
+
                 # Success! Add AI response and return
                 self.context_manager.add_ai_response(answer, "normal", exchange=exchange)
                 self.is_healthy = True
@@ -206,7 +242,8 @@ class LLMManager:
                     "model": self.model_name,
                     "key_rotated": attempt > 0,
                     "attempt": attempt + 1,
-                    "response_time": datetime.now().isoformat()
+                    "response_time": datetime.now().isoformat(),
+                    **({"prepared_source": prepared["source"]} if prepared else {})
                 }
                 
             except Exception as e:

@@ -421,21 +421,22 @@ def setup_webview_window():
         f'http://127.0.0.1:{uvicorn_server.port}',
         width=1000,
         height=750,
-        resizable=True
+        resizable=True,
+        on_top=True
     )
 
     # Window shown event handler
     def on_window_shown():
         print(f"🔧 Window shown event fired. DEV_MODE = {DEV_MODE}")
+        window_manager.window_manager.set_webview_window(window)
         
         if not DEV_MODE:
             print("🛡️ DEV_MODE is False - Applying screen capture protection...")
             protection_success = window_manager.apply_capture_protection(window)
             if protection_success:
-                print("✅ Screen capture protection successfully applied!")
+                print("✅ Window capture exclusion setting applied")
             else:
-                print("❌ CRITICAL: Screen capture protection FAILED!")
-                print("   🚨 WARNING: Window will be visible in screen recordings!")
+                print("⚠️ Window capture exclusion could not be applied")
         else:
             print("ℹ️ DEV_MODE is True. Skipping screen capture protection.")
             print("   📋 Note: Window WILL be visible in screen recordings during development")
@@ -445,7 +446,7 @@ def setup_webview_window():
         time.sleep(1.0)  # Give window more time to fully initialize
         
         # Find window and configure always-on-top (but NOT transparency yet)
-        if window_manager.find_gekko_window():
+        if sys.platform == "win32" and window_manager.find_gekko_window():
             print("🔍 Window found - setting up always-on-top only")
             
             # Wait a bit more before setting always-on-top
@@ -466,7 +467,7 @@ def setup_webview_window():
                 print("⚠️ Failed to set always on top after 3 attempts")
                 
             print("ℹ️ Transparency will be applied only during live interview")
-        else:
+        elif sys.platform == "win32":
             print("⚠️ Could not find Gekko window for window management")
         
         # Start the global hotkey listener

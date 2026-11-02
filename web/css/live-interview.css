@@ -91,6 +91,24 @@
     border-color: rgba(255, 255, 255, 0.15);
 }
 
+.header-controls .download-log-btn {
+    padding: 7px 10px;
+    border-color: rgba(129, 140, 248, 0.28);
+    background: rgba(99, 102, 241, 0.1);
+    color: #c7d2fe;
+    white-space: nowrap;
+}
+
+.header-controls .download-log-btn:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(129, 140, 248, 0.48);
+}
+
+.header-controls .download-log-btn:focus-visible {
+    outline: 2px solid #a5b4fc;
+    outline-offset: 2px;
+}
+
 .end-btn {
     background: rgba(244, 63, 94, 0.1) !important;
     border-color: rgba(244, 63, 94, 0.2) !important;
@@ -233,4 +251,26 @@
 .interview-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 10px;
+}
+.opacity-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary, #aeb7c4);
+    font-size: 12px;
+}
+
+.opacity-control button {
+    padding: 5px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+    cursor: pointer;
+}
+
+.opacity-control button[aria-pressed="true"] {
+    border-color: #82b7ff;
+    background: rgba(75, 145, 235, 0.3);
+    color: #fff;
 }

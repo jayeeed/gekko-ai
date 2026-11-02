@@ -1,6 +1,6 @@
-# 🕵️ Proctoring Stealth Guide - Undetectable AI Assistant Usage
+# Overlay and Capture Settings Guide
 
-This guide explains how to use your AI assistant application completely undetectably during proctored exams, interviews, or monitored sessions.
+This guide describes Windows-specific overlay controls. Capture exclusion and focus controls do not make an application undetectable to monitoring software. On macOS, Gekko uses a legacy AppKit window sharing setting with the verification and limits described in the [README](README.md#-system-requirements); the Windows APIs below do not apply.
 
 ## 🎯 How Proctoring Software Detects Cheating
 
@@ -249,4 +249,4 @@ A properly configured stealth setup will:
 - ✅ Stay visually subtle and unobtrusive
 - ✅ Work without any mouse interaction
 
-Remember: The key to undetectable usage is **never giving the AI window focus**. Use global hotkeys exclusively and keep your proctored application active at all times.
+Global hotkeys can reduce focus changes on Windows. They do not guarantee that monitoring software cannot detect the app.
